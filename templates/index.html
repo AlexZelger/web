@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HR Distance Randomizer</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Home Run Distance Randomizer</h1>
+      <p class="sub">Choose players (6–12), set names, or randomize funny names — then watch the balls fly.</p>
+    </header>
+
+    <!-- Menu overlay -->
+    <div id="menuOverlay" class="overlay">
+      <div class="overlay-card" role="dialog" aria-labelledby="menuTitle" aria-modal="true">
+        <h2 id="menuTitle">Set up your run</h2>
+
+        <div class="grid-row">
+          <label for="playerCount">Players</label>
+          <select id="playerCount" aria-label="Number of players">
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8" selected>8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+            <option value="12">12</option>
+          </select>
+        </div>
+
+        <div class="names">
+          <div class="names-head">
+            <h3>Player names</h3>
+            <button id="randomizeNamesBtn" type="button" class="btn-secondary">Randomize names</button>
+          </div>
+          <div id="namesContainer" class="names-grid"></div>
+        </div>
+
+        <div class="overlay-actions">
+          <button id="startBtn" class="btn-primary">Start Simulation</button>
+        </div>
+      </div>
+    </div>
+
+    <main>
+      <section class="canvas-card">
+        <div class="canvas-header">
+          <div class="meta">
+            <div>Run ID: <span id="runId">—</span></div>
+            <div>Seed: <span id="seed">—</span></div>
+          </div>
+          <div class="actions">
+            <button id="rerunBtn" class="btn-primary" title="Run again">Rerun</button>
+            <button id="changeBtn" class="btn-secondary" title="Change players">Change players</button>
+          </div>
+        </div>
+
+        <canvas id="field" width="900" height="280" aria-label="Baseball field animation"></canvas>
+
+        <div class="legend">
+          <span class="dot"></span> Ball flight &nbsp; | &nbsp;
+          <span class="fence"></span> Fence at <span id="fenceFt">—</span> ft
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <h2>Leaderboard</h2>
+        <ol id="leaderboard" class="board"></ol>
+
+        <h2>Now Hitting</h2>
+        <div id="currentPlayer" class="current">—</div>
+        <div id="status" class="status">Ready</div>
+      </aside>
+    </main>
+
+    <footer>
+      <small>Gravity and ballistics simplified for visuals. Built with Flask + Canvas.</small>
+    </footer>
+  </div>
+
+  <script defer src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>

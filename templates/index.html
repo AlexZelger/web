@@ -5,12 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HR Distance Randomizer</title>
 
-  <!-- Optional pixel font; safe fallback to monospace if blocked -->
+  <!-- Pixel font for retro look -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+  <!-- Top-right theme toggle -->
+  <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+    <span id="themeIcon" aria-hidden="true">☀️</span>
+  </button>
+
   <div class="app retro">
     <header class="retro-header">
       <h1>Home Run Distance Randomizer</h1>
@@ -18,23 +23,23 @@
     </header>
 
     <!-- Retro Scoreboard -->
-<section class="scoreboard">
-  <div class="sb-title bulb">HOMERUN&nbsp;DERBY</div>
-  <div class="sb-grid">
-    <div class="sb-cell bulb">AT&nbsp;BAT</div>
-    <div class="sb-val"><span class="bulb" id="sbAtBat">—</span></div>
+    <section class="scoreboard">
+      <div class="sb-title bulb">HOMERUN&nbsp;DERBY</div>
+      <div class="sb-grid">
+        <div class="sb-cell bulb">AT&nbsp;BAT</div>
+        <div class="sb-val"><span class="bulb" id="sbAtBat">—</span></div>
 
-    <div class="sb-cell bulb">DIST</div>
-    <div class="sb-val"><span class="bulb" id="sbDist">—</span></div>
+        <div class="sb-cell bulb">DIST</div>
+        <div class="sb-val"><span class="bulb" id="sbDist">—</span></div>
 
-    <div class="sb-cell bulb">PLAYERS</div>
-    <div class="sb-val"><span class="bulb" id="sbPlayers">—</span></div>
+        <div class="sb-cell bulb">PLAYERS</div>
+        <div class="sb-val"><span class="bulb" id="sbPlayers">—</span></div>
 
-    <div class="sb-cell bulb">SEED</div>
-    <div class="sb-val"><span class="bulb" id="sbSeed">—</span></div>
-  </div>
-  <div class="sb-footer">RUN&nbsp;<span class="bulb" id="sbRun">—</span></div>
-</section>
+        <div class="sb-cell bulb">LEADER</div>
+        <div class="sb-val"><span class="bulb" id="sbLeader">—</span></div>
+      </div>
+      <div class="sb-footer">RUN&nbsp;<span class="bulb" id="sbRun">—</span></div>
+    </section>
 
     <!-- Setup Menu -->
     <div id="menuOverlay" class="overlay">
@@ -69,7 +74,8 @@
     </div>
 
     <main>
-      <section class="canvas-card">
+      <!-- Canvas card now styled as a retro panel -->
+      <section class="panel canvas-card">
         <div class="canvas-header">
           <div class="actions">
             <button id="rerunBtn" class="btn-primary" title="Run again">Rerun</button>
@@ -86,17 +92,25 @@
       </section>
 
       <aside class="sidebar">
-        <h2>Leaderboard</h2>
-        <ol id="leaderboard" class="board"></ol>
+        <section class="panel">
+          <div class="panel-title bulb">LEADERBOARD</div>
+          <ol id="leaderboard" class="board"></ol>
+        </section>
 
-        <h2>Now Hitting</h2>
-        <div id="currentPlayer" class="current">—</div>
-        <div id="status" class="status">Ready</div>
+        <section class="panel">
+          <div class="panel-title bulb">NOW&nbsp;HITTING</div>
+          <div id="currentPlayer" class="current">
+            <span class="board" id="currentPlayerText">—</span>
+          </div>
+          <div id="status" class="status">
+            <span class="bulb" id="statusText">Ready</span>
+          </div>
+        </section>
       </aside>
     </main>
 
     <footer>
-      <small>Retro 2D theme. Pixel batter sprite rendered procedurally (no images).</small>
+      <small>Made by Alex Zelger</small>
     </footer>
   </div>
 

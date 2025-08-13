@@ -4,19 +4,42 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HR Distance Randomizer</title>
+
+  <!-- Optional pixel font; safe fallback to monospace if blocked -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <div class="app">
-    <header>
+  <div class="app retro">
+    <header class="retro-header">
       <h1>Home Run Distance Randomizer</h1>
-      <p class="sub">Choose players (6–12), set names, or randomize funny names — then watch the balls fly.</p>
+      <p class="sub">Pick 6–12 players, name them (or randomize), then swing away.</p>
     </header>
 
-    <!-- Menu overlay -->
+    <!-- Retro Scoreboard -->
+<section class="scoreboard">
+  <div class="sb-title bulb">HOMERUN&nbsp;DERBY</div>
+  <div class="sb-grid">
+    <div class="sb-cell bulb">AT&nbsp;BAT</div>
+    <div class="sb-val"><span class="bulb" id="sbAtBat">—</span></div>
+
+    <div class="sb-cell bulb">DIST</div>
+    <div class="sb-val"><span class="bulb" id="sbDist">—</span></div>
+
+    <div class="sb-cell bulb">PLAYERS</div>
+    <div class="sb-val"><span class="bulb" id="sbPlayers">—</span></div>
+
+    <div class="sb-cell bulb">SEED</div>
+    <div class="sb-val"><span class="bulb" id="sbSeed">—</span></div>
+  </div>
+  <div class="sb-footer">RUN&nbsp;<span class="bulb" id="sbRun">—</span></div>
+</section>
+
+    <!-- Setup Menu -->
     <div id="menuOverlay" class="overlay">
       <div class="overlay-card" role="dialog" aria-labelledby="menuTitle" aria-modal="true">
-        <h2 id="menuTitle">Set up your run</h2>
+        <h2 id="menuTitle">Lineup</h2>
 
         <div class="grid-row">
           <label for="playerCount">Players</label>
@@ -48,17 +71,13 @@
     <main>
       <section class="canvas-card">
         <div class="canvas-header">
-          <div class="meta">
-            <div>Run ID: <span id="runId">—</span></div>
-            <div>Seed: <span id="seed">—</span></div>
-          </div>
           <div class="actions">
             <button id="rerunBtn" class="btn-primary" title="Run again">Rerun</button>
             <button id="changeBtn" class="btn-secondary" title="Change players">Change players</button>
           </div>
         </div>
 
-        <canvas id="field" width="900" height="280" aria-label="Baseball field animation"></canvas>
+        <canvas id="field" width="900" height="300" aria-label="Baseball field animation"></canvas>
 
         <div class="legend">
           <span class="dot"></span> Ball flight &nbsp; | &nbsp;
@@ -77,7 +96,7 @@
     </main>
 
     <footer>
-      <small>Gravity and ballistics simplified for visuals. Built with Flask + Canvas.</small>
+      <small>Retro 2D theme. Pixel batter sprite rendered procedurally (no images).</small>
     </footer>
   </div>
 

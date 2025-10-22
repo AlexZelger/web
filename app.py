@@ -2,6 +2,8 @@ from flask import Flask, render_template, jsonify, request
 import random, time
 from datetime import datetime, timezone
 
+import tips
+
 app = Flask(__name__)
 
 g_ftps2 = 32.174
@@ -66,6 +68,29 @@ def api_simulate():
     except (TypeError, ValueError):
         num_players = 8
     return jsonify(generate_run(num_players=num_players, names=names))
+
+@app.get("/tips")
+def tip():
+    return render_template("tips.html")
+
+@app.post("/calculate_tips")
+def calculate_tips():
+    data = request.get_json(silent=True) or {}
+    total = float(data["total"])
+    tip_percentage = float(data["tip_percentage"])
+    num_people = int(data["num_people"])
+    print(f"{total}, {tip_percentage}, {(tip_percentage / 100.0)}, {num_people}")
+
+    tip_amount = round(total * (tip_percentage / 100.0), 2)
+    total_with_tip = round(total + tip_amount, 2)
+    per_person = round(total_with_tip / max(num_people, 1), 2)
+
+    return jsonify({
+        "tip_amount": tip_amount,
+        "total_with_tip": total_with_tip,
+        "per_person": per_person
+    })
+
 
 # For local dev only (use a real WSGI/ASGI server for production)
 if __name__ == "__main__":

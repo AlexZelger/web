@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>HR Distance Randomizer</title>
 
-  <!-- Pixel font for retro look -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -74,11 +72,12 @@
     </div>
 
     <main>
-      <!-- Canvas card now styled as a retro panel -->
+      <!-- Canvas card themed like panel -->
       <section class="panel canvas-card">
         <div class="canvas-header">
           <div class="actions">
             <button id="rerunBtn" class="btn-primary" title="Run again">Rerun</button>
+            <button id="shareBtn" class="btn-secondary" title="Copy shareable link">Share</button>
             <button id="changeBtn" class="btn-secondary" title="Change players">Change players</button>
           </div>
         </div>
@@ -100,7 +99,7 @@
         <section class="panel">
           <div class="panel-title bulb">NOW&nbsp;HITTING</div>
           <div id="currentPlayer" class="current">
-            <span class="board" id="currentPlayerText">—</span>
+            <span class="bulb" id="currentPlayerText">—</span>
           </div>
           <div id="status" class="status">
             <span class="bulb" id="statusText">Ready</span>
@@ -114,6 +113,6 @@
     </footer>
   </div>
 
-  <script defer src="{{ url_for('static', filename='main.js') }}"></script>
+  <script defer src="{{ url_for('static', filename='baseball.js') }}"></script>
 </body>
 </html>

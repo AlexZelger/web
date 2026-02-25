@@ -1,0 +1,401 @@
+<!-- templates/home.html -->
+{% extends "base.html" %}
+
+{% block title %}Your Name — Developer{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Hero ─────────────────────────────────────────────────────────── */
+  .hero {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 100px 40px 80px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 2px;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(48px, 6vw, 80px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin-bottom: 28px;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-body {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--muted);
+    margin-bottom: 36px;
+    max-width: 420px;
+  }
+
+  .hero-body strong { color: var(--ink); font-weight: 500; }
+
+  .hero-ctas {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    background: var(--ink);
+    padding: 14px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .btn-primary:hover { background: var(--accent); transform: translateY(-2px); }
+  .btn-primary svg { transition: transform 0.2s; }
+  .btn-primary:hover svg { transform: translateX(3px); }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 14px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  /* hero right — stats block */
+  .hero-right {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .stat-block {
+    background: var(--paper);
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: background 0.2s;
+  }
+  .stat-block:hover { background: var(--white); }
+
+  .stat-number {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .stat-number span { color: var(--accent); }
+
+  .stat-desc {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Featured project ────────────────────────────────────────────── */
+  .featured-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .section-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-eyebrow::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  .featured-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 56px;
+    align-items: center;
+    background: var(--white);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+    padding: 0;
+    transition: box-shadow 0.3s;
+  }
+  .featured-card:hover {
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+  }
+
+  .featured-visual {
+    background: var(--accent);
+    height: 100%;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .featured-visual::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
+  }
+
+  .featured-visual::after {
+    content: '⚾';
+    position: absolute;
+    font-size: 120px;
+    opacity: 0.08;
+    bottom: -20px;
+    right: -10px;
+  }
+
+  .featured-visual-inner {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  .fv-stat {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 80px;
+    color: var(--gold);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .fv-label {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245,236,215,0.45);
+    margin-top: 4px;
+  }
+
+  .featured-content {
+    padding: 40px 40px 40px 0;
+  }
+
+  .featured-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .featured-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  .featured-desc {
+    font-size: 13px;
+    line-height: 1.75;
+    color: var(--muted);
+    margin-bottom: 28px;
+  }
+
+  /* ── About strip ─────────────────────────────────────────────────── */
+  .about-strip {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 60px;
+    align-items: start;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .about-label {
+    font-family: 'DM Serif Display', serif;
+    font-size: 36px;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+
+  .about-label em { color: var(--accent); font-style: italic; }
+
+  .about-body {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--muted);
+  }
+
+  .about-body strong { color: var(--ink); font-weight: 500; }
+
+  .about-body p + p { margin-top: 16px; }
+
+  /* ── Responsive ──────────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; padding: 60px 20px 48px; gap: 40px; }
+    .featured-section { padding: 48px 20px; }
+    .featured-card { grid-template-columns: 1fr; }
+    .featured-visual { min-height: 200px; }
+    .featured-content { padding: 28px; }
+    .about-strip { grid-template-columns: 1fr; padding: 48px 20px; gap: 24px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <!-- Hero -->
+  <section class="hero">
+    <div>
+      <div class="hero-eyebrow">Available for projects</div>
+      <h1 class="hero-title">
+        Building things<br/>
+        that are <em>actually</em><br/>
+        fun to use.
+      </h1>
+      <p class="hero-body">
+        I'm a <strong>developer</strong> who builds web apps, tools, and games.
+        I care about clean code, good data, and experiences worth coming back to.
+      </p>
+      <div class="hero-ctas">
+        <a href="/portfolio" class="btn-primary">
+          View My Projects
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a href="mailto:you@example.com" class="btn-secondary">Get In Touch</a>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="stat-block">
+        <div class="stat-number">1990<span>–</span>2025</div>
+        <div class="stat-desc">Years of MLB data in the baseball game</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-number">5</div>
+        <div class="stat-desc">Stat categories: HR, RBI, AVG, ERA, WAR</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-number">30<span>+</span></div>
+        <div class="stat-desc">MLB teams across 6 divisions</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Featured Project -->
+  <section class="featured-section">
+    <div class="section-eyebrow">Featured Project</div>
+    <div class="featured-card">
+      <div class="featured-visual">
+        <div class="featured-visual-inner">
+          <div class="fv-stat">HR</div>
+          <div class="fv-label">Pick your best lineup</div>
+        </div>
+      </div>
+      <div class="featured-content">
+        <div class="featured-tags">
+          <span class="tag highlight">Game</span>
+          <span class="tag">Python</span>
+          <span class="tag">Flask</span>
+          <span class="tag">Baseball</span>
+        </div>
+        <h2 class="featured-title">Baseball Draft Game</h2>
+        <p class="featured-desc">
+          A stat-based knowledge game built on 33 years of MLB data.
+          Pick players across 5 randomized slots — by team, division, or era —
+          then choose the year you think they peaked. Highest total wins.
+        </p>
+        <a href="/game/" class="btn-primary">
+          Play Now
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- About strip -->
+  <section class="about-strip">
+    <h2 class="about-label">A bit<br/>about <em>me.</em></h2>
+    <div class="about-body">
+      <p>
+        <!-- Replace this with your actual bio -->
+        I'm a developer based in <strong>[Your City]</strong> with a passion for
+        building things that combine <strong>data, design, and interactivity</strong>.
+        Whether it's a game, a tool, or a full web app, I like projects that are
+        worth showing off.
+      </p>
+      <p>
+        When I'm not coding I'm probably thinking about baseball statistics,
+        which is how the draft game ended up existing.
+        <!-- Feel free to change this to something true about you -->
+      </p>
+    </div>
+  </section>
+
+{% endblock %}

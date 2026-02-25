@@ -1,0 +1,256 @@
+<!-- templates/portfolio.html -->
+{% extends "base.html" %}
+
+{% block title %}Projects — Your Name{% endblock %}
+
+{% block head %}
+<style>
+  .hero {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 40px 64px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: end;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(42px, 6vw, 72px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .hero-title em { font-style: italic; color: var(--accent); }
+
+  .hero-desc {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--muted);
+    max-width: 380px;
+    align-self: end;
+  }
+  .hero-desc strong { color: var(--ink); font-weight: 500; }
+
+  .section-bar {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .section-bar-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .section-bar-count { font-family: 'DM Serif Display', serif; font-size: 13px; color: var(--muted); margin-left: auto; }
+
+  .projects { max-width: 1200px; margin: 0 auto; padding: 0 40px 80px; }
+
+  .card-featured {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-bottom: 1px solid var(--rule);
+    padding: 48px 0;
+    gap: 60px;
+    align-items: center;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-visual {
+    background: var(--accent);
+    border-radius: 8px;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-visual.baseball::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
+  }
+
+  .card-visual.baseball::after {
+    content: '⚾'; font-size: 80px; opacity: 0.1;
+    position: absolute; bottom: -10px; right: 20px;
+  }
+
+  .card-visual.placeholder { background: var(--rule); }
+  .card-visual.placeholder::after { content: attr(data-emoji); font-size: 64px; opacity: 0.3; }
+
+  .visual-inner { position: relative; z-index: 1; text-align: center; padding: 24px; }
+  .visual-stat { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 64px; color: var(--gold); line-height: 1; }
+  .visual-label { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(245,236,215,0.45); margin-top: 4px; }
+
+  .card-tags { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+  .card-title { font-family: 'DM Serif Display', serif; font-size: clamp(28px, 3vw, 40px); line-height: 1.1; color: var(--ink); margin-bottom: 12px; }
+  .card-desc  { font-size: 13px; line-height: 1.75; color: var(--muted); margin-bottom: 28px; }
+
+  .card-meta { display: flex; gap: 28px; margin-bottom: 28px; flex-wrap: wrap; }
+  .meta-item { display: flex; flex-direction: column; gap: 3px; }
+  .meta-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .meta-value { font-size: 12px; font-weight: 500; color: var(--ink); }
+
+  .card-link {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--white); background: var(--ink);
+    padding: 12px 28px; border-radius: 4px; text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+  .card-link:hover { background: var(--accent); transform: translateY(-2px); }
+  .card-link svg { transition: transform 0.2s; }
+  .card-link:hover svg { transform: translateX(3px); }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1px; background: var(--rule);
+    border-top: 1px solid var(--rule);
+    margin: 0 -40px;
+  }
+
+  .card-small {
+    background: var(--paper); padding: 32px;
+    display: flex; flex-direction: column; gap: 12px;
+    animation: fadeUp 0.5s ease both; transition: background 0.2s;
+  }
+  .card-small:hover { background: var(--white); }
+  .card-small .card-visual { aspect-ratio: 16/8; margin-bottom: 4px; }
+  .card-small .card-title  { font-size: 22px; margin-bottom: 0; }
+  .card-small .card-desc   { font-size: 12px; margin-bottom: 0; flex: 1; }
+  .card-small .card-link   { font-size: 12px; padding: 10px 20px; align-self: flex-start; }
+
+  .card-coming {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 8px; min-height: 240px;
+    border: 2px dashed var(--rule); border-radius: 8px;
+    text-align: center; margin-top: 40px;
+  }
+  .card-coming-icon  { font-size: 32px; opacity: 0.25; margin-bottom: 4px; }
+  .card-coming-label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .card-coming-text  { font-family: 'DM Serif Display', serif; font-style: italic; font-size: 18px; color: var(--rule); }
+
+  @media (max-width: 768px) {
+    .hero { grid-template-columns: 1fr; padding: 48px 20px 40px; gap: 24px; }
+    .hero-desc { max-width: 100%; }
+    .section-bar { padding: 20px; }
+    .projects { padding: 0 20px 60px; }
+    .card-featured { grid-template-columns: 1fr; gap: 28px; }
+    .cards-grid { margin: 0 -20px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <section class="hero">
+    <div>
+      <div class="hero-eyebrow">Portfolio · Projects</div>
+      <h1 class="hero-title">Things I've<br/><em>built</em> &amp; shipped.</h1>
+    </div>
+    <p class="hero-desc">
+      A collection of <strong>coding projects</strong> ranging from web apps
+      to games and tools. Each one built to solve a problem or scratch a creative itch.
+    </p>
+  </section>
+
+  <div class="section-bar">
+    <span class="section-bar-label">All Projects</span>
+    <span class="section-bar-count">1 project</span>
+  </div>
+
+  <div class="projects">
+    <div class="card-featured">
+      <div class="card-visual baseball">
+        <div class="visual-inner">
+          <div class="visual-stat">HR</div>
+          <div class="visual-label">Pick your best lineup</div>
+        </div>
+      </div>
+      <div class="card-content">
+        <div class="card-tags">
+          <span class="tag highlight">Featured</span>
+          <span class="tag">Python</span>
+          <span class="tag">Flask</span>
+          <span class="tag">Baseball</span>
+        </div>
+        <h2 class="card-title">Baseball<br/>Draft Game</h2>
+        <p class="card-desc">
+          A stat-based baseball knowledge game. Each round gives you a stat
+          category and 5 slots — each tied to a team, division, or era. Search
+          for players, pick the year you think was their peak, and rack up the
+          highest total. Powered by historical MLB data going back to 1990.
+        </p>
+        <div class="card-meta">
+          <div class="meta-item">
+            <span class="meta-label">Stack</span>
+            <span class="meta-value">Flask · Python · pybaseball</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Stats</span>
+            <span class="meta-value">HR · RBI · AVG · ERA · WAR</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Data</span>
+            <span class="meta-value">1990 – 2025</span>
+          </div>
+        </div>
+        <a href="/game/" class="card-link">
+          Play Now
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <!--
+    ADD MORE PROJECTS — copy a .card-small block, wrap in .cards-grid
+    <div class="cards-grid">
+      <div class="card-small">
+        <div class="card-visual placeholder" data-emoji="🗂️"></div>
+        <div class="card-tags"><span class="tag">Python</span></div>
+        <h2 class="card-title">Project Name</h2>
+        <p class="card-desc">Short description.</p>
+        <a href="/your-route" class="card-link">
+          View Project
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+    -->
+
+    <div class="card-coming">
+      <div class="card-coming-icon">🚧</div>
+      <div class="card-coming-label">More projects coming</div>
+      <div class="card-coming-text">More on the way</div>
+    </div>
+  </div>
+
+{% endblock %}

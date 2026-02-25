@@ -118,7 +118,7 @@ function drawField(fenceFt) {
 
   // Fence line
   const fenceX = SCENE_X0 + fenceFt * PX_PER_FT;
-  ctx.strokeStyle = "#334155";
+  ctx.strokeStyle = "#ffffff";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(fenceX, 20);
@@ -126,11 +126,11 @@ function drawField(fenceFt) {
   ctx.stroke();
 
   // Home plate
-  ctx.fillStyle = "#4b5563";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(SCENE_X0 - 12, GROUND_Y - 10, 12, 10);
 
   // Distance ticks / labels
-  ctx.fillStyle = "#334155";
+  ctx.fillStyle = "#ffffff";
   ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
   for (let ft = 100; ft <= 500; ft += 50) {
     const x = SCENE_X0 + ft * PX_PER_FT;
@@ -139,57 +139,74 @@ function drawField(fenceFt) {
   }
 
   // Baseline
-  ctx.fillStyle = "#6b7280";
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, GROUND_Y, field.width, 4);
 }
 
-// ------- Pixel batter (procedural sprite)
-const SPRITE_SCALE = 4;
-const COLOR = { ".": null, "S": "#ffd7b1", "U": "#1e3a8a", "K": "#0b1020", "B": "#8b5a2b" };
-const FRAMES = [
-  [
-    "................","......KSSK......","......KSSK......",".......KK.......",
-    "....UUUKKK......","...UUUUSSK......","...UUUUSSK......","....UUUSSK......",
-    "......KSSK......","......KSSK......","......KSSK......",".....KUUUK......",
-    "....KUUUUUK.....",".....KUUUK......","......KKK.......","................",
-  ],
-  [
-    "................","......KSSK......","......KSSK......",".......KK.......",
-    "....UUUKKK......","...UUUUSSK..BBB.","...UUUUSSK.BBB..","....UUUSSK.B....",
-    "......KSSK......","......KSSK......","......KSSK......",".....KUUUK......",
-    "....KUUUUUK.....",".....KUUUK......","......KKK.......","................",
-  ],
-  [
-    "................","......KSSK......","......KSSK......",".......KK....B..",
-    "....UUUKKK..BB..","...UUUUSSK.BB...","...UUUUSSKB.....","....UUUSSK......",
-    "......KSSK......","......KSSK......","......KSSK......",".....KUUUK......",
-    "....KUUUUUK.....",".....KUUUK......","......KKK.......","................",
-  ],
-];
+// --- Pixel batter bitmaps (cache-busted in dev)
+const SPRITES = {
+  stance: new Image(),
+  mid:    new Image(),
+  follow: new Image(),
+};
+const SPRITE_PATHS = {
+  stance: "/static/sprites/batter2.png",
+  mid:    "/static/sprites/batter1.png",
+  follow: "/static/sprites/batter3.png",
+};
 
-let batterFrame = 0; // 0 stance, 1 mid, 2 follow-through
-const BATTER_X = SCENE_X0 - 24;
-const BATTER_Y = () => GROUND_Y;
-
-function drawPixelSprite(frame, x, y, scale) {
-  const grid = FRAMES[frame];
-  for (let r = 0; r < grid.length; r++) {
-    const row = grid[r];
-    for (let c = 0; c < row.length; c++) {
-      const ch = row[c];
-      const fill = COLOR[ch];
-      if (!fill) continue;
-      ctx.fillStyle = fill;
-      ctx.fillRect(x + c*scale, (y - 16*scale) + r*scale, scale, scale);
-    }
-  }
+// helper: load once
+function loadSprites() {
+  if (loadSprites._p) return loadSprites._p; // memoize
+  const bust = Date.now(); // avoids browser caching while developing
+  loadSprites._p = Promise.all([
+    new Promise((res, rej) => { SPRITES.stance.onload = res; SPRITES.stance.onerror = rej; SPRITES.stance.src = `${SPRITE_PATHS.stance}?v=${bust}`; }),
+    new Promise((res, rej) => { SPRITES.mid.onload    = res; SPRITES.mid.onerror    = rej; SPRITES.mid.src    = `${SPRITE_PATHS.mid}?v=${bust}`; }),
+    new Promise((res, rej) => { SPRITES.follow.onload = res; SPRITES.follow.onerror = rej; SPRITES.follow.src = `${SPRITE_PATHS.follow}?v=${bust}`; }),
+  ]);
+  return loadSprites._p;
 }
-function drawBatter() { drawPixelSprite(batterFrame, BATTER_X, BATTER_Y(), SPRITE_SCALE); }
+
+// choose which sprite to draw
+let batterPose = "stance";
+
+// scale so it fits; keep pixels crisp
+function drawBatterBitmap(img) {
+  if (!img || !img.complete) return;
+
+  // target max height on your 900x300 canvas
+  const TARGET_H = 130;                           // tweak if you want bigger/smaller
+  const scale = Math.min(1, TARGET_H / img.height);
+  const destW = Math.round(img.width  * scale);
+  const destH = Math.round(img.height * scale);
+
+  const dx = SCENE_X0;                            // left offset you already use
+  const dy = GROUND_Y - destH;                    // bottom align to ground
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, dx, dy, destW, destH);
+}
+
+// wrapper used everywhere you previously called drawBatter()
+function drawBatter() {
+  drawBatterBitmap(SPRITES[batterPose]);
+}
 
 async function animateSwing() {
-  batterFrame = 0; drawField(currentFence); drawBatter(); await delay(100);
-  batterFrame = 1; drawField(currentFence); drawBatter(); await delay(100);
-  batterFrame = 2; drawField(currentFence); drawBatter(); await delay(100);
+  await loadSprites();                 // ensure images are ready
+
+  const steps = [
+    ["stance", 120],
+    ["mid",     90],
+    ["follow", 130],
+  ];
+
+  for (const [pose, ms] of steps) {
+    batterPose = pose;
+    drawField(currentFence);
+    drawBatter();
+    await new Promise(r => setTimeout(r, ms));
+  }
 }
 
 function drawBall(x, y) {

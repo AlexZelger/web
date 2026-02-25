@@ -1,10 +1,15 @@
 from flask import Flask, render_template, jsonify, request
 import random, time
 from datetime import datetime, timezone
+from game_routes import game_bp
+
 
 import tips
 
 app = Flask(__name__)
+
+app.secret_key = "change-this-to-a-long-random-secret"
+app.register_blueprint(game_bp)
 
 g_ftps2 = 32.174
 
@@ -47,8 +52,17 @@ def generate_run(num_players: int = 8, names=None):
     }
 
 @app.get("/")
-def index():
-    return render_template("index.html")
+def home():
+    return render_template("home.html")
+
+@app.route("/portfolio")
+def portfolio():
+    return render_template("portfolio.html")
+
+@app.route("/draftorder")
+def draftorder():
+    return render_template("draftorder.html")
+
 
 # GET:  /api/simulate?num_players=8&name=Alex&name=Barry
 # POST: JSON {"num_players": 8, "names": ["Alex","Barry",...]}

@@ -1,0 +1,238 @@
+
+{% block title %}Baseball Draft Game{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Baseball Draft Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #1a3a2a;
+      --green2:  #0f2218;
+      --cream:   #f5ecd7;
+      --gold:    #c9933a;
+      --red:     #b03030;
+      --felt:    #1e4030;
+      --stitch:  rgba(201,147,58,0.25);
+    }
+
+    body {
+      background-color: var(--green2);
+      color: var(--cream);
+      font-family: 'IBM Plex Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* felt texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(
+          0deg, transparent, transparent 2px,
+          rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px
+        ),
+        repeating-linear-gradient(
+          90deg, transparent, transparent 2px,
+          rgba(255,255,255,0.015) 2px, rgba(255,255,255,0.015) 4px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* diamond stitching border */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 24px;
+      border: 2px solid var(--stitch);
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 700px;
+      padding: 40px 24px;
+      animation: fadeUp 0.8s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .diamond {
+      width: 60px;
+      height: 60px;
+      background: var(--gold);
+      transform: rotate(45deg);
+      margin: 0 auto 32px;
+      position: relative;
+    }
+    .diamond::after {
+      content: '⚾';
+      position: absolute;
+      font-size: 24px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+    }
+
+    h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(52px, 10vw, 96px);
+      letter-spacing: 0.04em;
+      line-height: 0.9;
+      color: var(--cream);
+      text-shadow: 4px 4px 0 var(--green2);
+      margin-bottom: 8px;
+    }
+
+    h1 span {
+      color: var(--gold);
+      display: block;
+    }
+
+    .tagline {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 18px;
+      color: rgba(245, 236, 215, 0.6);
+      margin: 16px 0 48px;
+      letter-spacing: 0.02em;
+    }
+
+    .how-to {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(201,147,58,0.3);
+      border-radius: 8px;
+      padding: 28px 32px;
+      margin-bottom: 40px;
+      text-align: left;
+    }
+
+    .how-to h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      margin-bottom: 16px;
+    }
+
+    .how-to ol {
+      list-style: none;
+      counter-reset: steps;
+    }
+
+    .how-to ol li {
+      counter-increment: steps;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(245,236,215,0.8);
+      margin-bottom: 12px;
+    }
+
+    .how-to ol li::before {
+      content: counter(steps);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      color: var(--gold);
+      line-height: 1;
+      min-width: 20px;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      background: rgba(201,147,58,0.12);
+      border: 1px solid rgba(201,147,58,0.4);
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    .play-btn {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--green2);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 0.1em;
+      padding: 16px 64px;
+      border-radius: 4px;
+      text-decoration: none;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+      position: relative;
+    }
+
+    .play-btn:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+    }
+
+    .play-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="diamond"></div>
+    <h1>Baseball<span>Draft Game</span></h1>
+    <p class="tagline">How well do you know the numbers?</p>
+
+    <div class="how-to">
+      <h2>How to Play</h2>
+      <ol>
+        <li>Each round has a single stat category — Home Runs, ERA, RBI, and more.</li>
+        <li>You'll get 5 slots. Each one shows a team or division with an optional year range.</li>
+        <li>Search for a player that fits each slot's criteria.</li>
+        <li>Pick the year you think they had their best performance.</li>
+        <li>Submit all 5 picks. Your stat values are totalled into a final score.</li>
+      </ol>
+    </div>
+
+    <div class="stats-bar">
+      <span class="stat-pill">Home Runs</span>
+      <span class="stat-pill">RBI</span>
+      <span class="stat-pill">Batting Avg</span>
+      <span class="stat-pill">ERA</span>
+      <span class="stat-pill">WAR</span>
+    </div>
+
+    <a href="/game/new" class="play-btn">Play Ball</a>
+  </div>
+</body>
+</html>
+{% endblock %}

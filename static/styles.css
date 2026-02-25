@@ -59,7 +59,7 @@ main {
 /* Canvas – keep simple gray background */
 canvas {
   width: 100%; height: auto; border-radius: 12px; border: 2px solid var(--slate-300);
-  background: linear-gradient(#e2e8f0, #f8fafc);
+  background: linear-gradient(#245c1d, #163312);
   image-rendering: pixelated;
 }
 

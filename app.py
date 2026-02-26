@@ -86,6 +86,10 @@ def portfolio():
 def draftorder():
     return render_template("draftorder.html")
 
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
 
 # GET:  /api/simulate?num_players=8&name=Alex&name=Barry
 # POST: JSON {"num_players": 8, "names": ["Alex","Barry",...]}

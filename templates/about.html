@@ -1,0 +1,526 @@
+<!-- templates/about.html -->
+{% extends "base.html" %}
+
+{% block title %}About — Alex Zelger{% endblock %}
+
+{% block head %}
+<style>
+  /* ── Hero ─────────────────────────────────────────────────────────── */
+  .about-hero {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 80px 40px 72px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: end;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 28px;
+    height: 2px;
+    background: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .hero-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(48px, 6vw, 80px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-right {
+    align-self: end;
+    padding-bottom: 6px;
+  }
+
+  .hero-tagline {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(18px, 2.2vw, 26px);
+    color: var(--muted);
+    line-height: 1.4;
+    margin-bottom: 28px;
+  }
+
+  .hero-tagline strong {
+    color: var(--ink);
+    font-style: normal;
+  }
+
+  .available-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(26,58,42,0.3);
+    background: rgba(26,58,42,0.06);
+    padding: 8px 16px;
+    border-radius: 999px;
+  }
+
+  .available-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 0 rgba(26,58,42,0.4);
+    animation: ping 1.8s ease-in-out infinite;
+  }
+
+  @keyframes ping {
+    0%   { box-shadow: 0 0 0 0 rgba(26,58,42,0.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(26,58,42,0); }
+    100% { box-shadow: 0 0 0 0 rgba(26,58,42,0); }
+  }
+
+  /* ── Bio section ─────────────────────────────────────────────────── */
+  .bio-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 60px;
+    align-items: start;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 4px;
+    position: sticky;
+    top: 80px;
+  }
+
+  .bio-text {
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--muted);
+  }
+
+  .bio-text strong { color: var(--ink); font-weight: 500; }
+
+  .bio-text p + p { margin-top: 20px; }
+
+  /* ── Skills section ──────────────────────────────────────────────── */
+  .skills-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 60px;
+    align-items: start;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .skills-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .skill-group {
+    background: var(--paper);
+    padding: 24px;
+    transition: background 0.2s;
+  }
+
+  .skill-group:hover { background: var(--white); }
+
+  .skill-group-title {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+  }
+
+  .skill-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .skill-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--ink);
+  }
+
+  .skill-item::before {
+    content: '';
+    display: block;
+    width: 16px;
+    height: 2px;
+    background: var(--rule);
+    flex-shrink: 0;
+    transition: background 0.2s, width 0.2s;
+  }
+
+  .skill-group:hover .skill-item::before {
+    background: var(--gold);
+    width: 20px;
+  }
+
+  /* ── Currently section ───────────────────────────────────────────── */
+  .currently-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 60px;
+    align-items: start;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .currently-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .currently-card {
+    background: var(--white);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 24px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .currently-card:hover {
+    border-color: var(--gold);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  }
+
+  .currently-card-icon {
+    font-size: 24px;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .currently-card-label {
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .currently-card-value {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  /* ── Contact strip ───────────────────────────────────────────────── */
+  .contact-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 64px 40px 80px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  .contact-content {}
+
+  .contact-headline {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(28px, 3.5vw, 44px);
+    line-height: 1.1;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  .contact-headline em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .contact-sub {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+    margin-bottom: 28px;
+    max-width: 440px;
+  }
+
+  .contact-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--white);
+    background: var(--ink);
+    padding: 13px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.15s;
+  }
+
+  .btn-primary:hover { background: var(--accent); transform: translateY(-2px); }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    padding: 13px 28px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--ink); }
+
+  /* ── Fade-in animation ───────────────────────────────────────────── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.55s ease, transform 0.55s ease;
+  }
+
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── Responsive ──────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    .skills-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .about-hero       { grid-template-columns: 1fr; padding: 48px 20px 40px; gap: 32px; }
+    .bio-section,
+    .skills-section,
+    .currently-section,
+    .contact-section  { grid-template-columns: 1fr; padding: 48px 20px; gap: 24px; }
+    .section-label    { position: static; }
+    .skills-grid      { grid-template-columns: 1fr; }
+    .currently-grid   { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+  <!-- Hero -->
+  <section class="about-hero">
+    <div>
+      <div class="hero-eyebrow">About Me</div>
+      <h1 class="hero-title">
+        Code,<br/>
+        craft, &amp;<br/>
+        <em>curiosity.</em>
+      </h1>
+    </div>
+    <div class="hero-right">
+      <p class="hero-tagline">
+        Full-stack developer with over <strong>4 years</strong> of experience
+        building things that are actually worth using.
+      </p>
+      <div class="available-badge">
+        <div class="available-dot"></div>
+        Available for new roles
+      </div>
+    </div>
+  </section>
+
+  <!-- Bio -->
+  <section class="bio-section fade-up">
+    <div class="section-label">Background</div>
+    <div class="bio-text">
+      <p>
+        I studied <strong>Computer Science</strong> and came out the other side with a genuine
+        love for building things end-to-end — from the database query to the button the user
+        actually clicks. Over the past few years I've worked across the full stack, spending
+        time in both <strong>Python and C# backends</strong> and building interfaces with
+        <strong>React and TypeScript</strong> on the frontend.
+      </p>
+      <p>
+        I care about software that is well-structured, not just functional. That means
+        readable code, sensible abstractions, and products that don't make people feel
+        stupid for using them. I'm as comfortable writing an API as I am obsessing over
+        a UI detail that most people won't consciously notice but everyone will feel.
+      </p>
+      <p>
+        Outside of work I'm usually watching baseball, playing games, or building something
+        like a <strong>stat-based MLB draft game</strong> — which is conveniently also the
+        first project on this portfolio.
+      </p>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section class="skills-section fade-up">
+    <div class="section-label">Skills &amp; Stack</div>
+    <div class="skills-grid">
+      <div class="skill-group">
+        <div class="skill-group-title">Languages</div>
+        <div class="skill-list">
+          <div class="skill-item">Python</div>
+          <div class="skill-item">TypeScript</div>
+          <div class="skill-item">JavaScript</div>
+          <div class="skill-item">C# / .NET</div>
+          <div class="skill-item">SQL</div>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-title">Frameworks</div>
+        <div class="skill-list">
+          <div class="skill-item">React / Next.js</div>
+          <div class="skill-item">Flask / Django</div>
+          <div class="skill-item">ASP.NET</div>
+          <div class="skill-item">Node / Express</div>
+        </div>
+      </div>
+      <div class="skill-group">
+        <div class="skill-group-title">Tools &amp; Infra</div>
+        <div class="skill-list">
+          <div class="skill-item">AWS / Azure / GCP</div>
+          <div class="skill-item">Docker</div>
+          <div class="skill-item">CI / CD pipelines</div>
+          <div class="skill-item">Git</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Currently -->
+  <section class="currently-section fade-up">
+    <div class="section-label">Right Now</div>
+    <div class="currently-grid">
+      <div class="currently-card">
+        <span class="currently-card-icon">💻</span>
+        <div class="currently-card-label">Building</div>
+        <div class="currently-card-value">
+          This portfolio and a baseball stats game — combining a CS background with a love for sports data.
+        </div>
+      </div>
+      <div class="currently-card">
+        <span class="currently-card-icon">🔍</span>
+        <div class="currently-card-label">Looking for</div>
+        <div class="currently-card-value">
+          Full-stack roles where I can work across the whole product — ideally at a team that ships things people actually use.
+        </div>
+      </div>
+      <div class="currently-card">
+        <span class="currently-card-icon">⚾</span>
+        <div class="currently-card-label">Obsessing over</div>
+        <div class="currently-card-value">
+          Baseball statistics. WAR, ERA+, xFIP — the sport has better data than most software companies.
+        </div>
+      </div>
+      <div class="currently-card">
+        <span class="currently-card-icon">🎮</span>
+        <div class="currently-card-label">Unwinding with</div>
+        <div class="currently-card-value">
+          Games — a good way to study UI/UX without it feeling like work.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section class="contact-section fade-up">
+    <div class="section-label">Get In Touch</div>
+    <div class="contact-content">
+      <h2 class="contact-headline">
+        Let's build<br/>
+        something <em>good.</em>
+      </h2>
+      <p class="contact-sub">
+        I'm actively looking for full-stack roles. If you're working on something
+        interesting or just want to talk shop, my inbox is open.
+      </p>
+      <div class="contact-links">
+        <a href="mailto:you@example.com" class="btn-primary">
+          Send an Email
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+        <a href="https://linkedin.com/in/Alex-Zelger" target="_blank" rel="noopener" class="btn-secondary">
+          LinkedIn
+        </a>
+        <a href="https://github.com/AlexZelger" target="_blank" rel="noopener" class="btn-secondary">
+          GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Scroll-triggered fade-in for each section
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(el => {
+      if (el.isIntersecting) {
+        el.target.classList.add('visible');
+        observer.unobserve(el.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-up').forEach((el, i) => {
+    el.style.transitionDelay = `${i * 0.08}s`;
+    observer.observe(el);
+  });
+</script>
+{% endblock %}

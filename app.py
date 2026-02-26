@@ -26,7 +26,7 @@ g_ftps2 = 32.174
 # async_mode="threading" works on any host without extra dependencies.
 # If you later move to gunicorn + eventlet, change to async_mode="eventlet"
 # and pip install eventlet.
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode="gevent", cors_allowed_origins="*")
 
 # ── Blueprints ────────────────────────────────────────────────────────────
 from game_routes import game_bp

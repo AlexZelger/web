@@ -32,6 +32,8 @@ STAT_CONFIG = {
     "AVG": {"label": "Batting Average", "type": "batting",  "ascending": False},
     "WAR": {"label": "WAR",             "type": "both",     "ascending": False},
     "ERA": {"label": "ERA",             "type": "pitching", "ascending": True},
+    "SB":  {"label": "Stolen Bases",    "type": "batting",  "ascending": False},
+    "3B":  {"label": "Triples",         "type": "batting",  "ascending": False},
 }
 
 DIVISIONS = {
@@ -69,8 +71,59 @@ def get_team_logo_url(team_abbr: str) -> str | None:
         return None
     return f"https://www.mlbstatic.com/team-logos/{team_id}.svg"
 
-# Prompt types the game can generate
-PROMPT_TYPES = ["team_with_range", "team_only", "division_with_range", "division_only"]
+# ---------------------------------------------------------------------------
+# Prompt type definitions
+# ---------------------------------------------------------------------------
+#
+# Each prompt type is a string key. _build_prompt() switches on these.
+# Weights control how often each type is chosen — rarer/harder types are
+# given lower weight so the game stays approachable.
+#
+PROMPT_TYPE_WEIGHTS = {
+    # Original types
+    "team_with_range":      4,
+    "team_only":            3,
+    "division_with_range":  3,
+    "division_only":        2,
+    # New types
+    "multi_team":           2,   # played for N+ teams in career
+    "al_only":              2,   # career exclusively in AL
+    "nl_only":              2,   # career exclusively in NL
+    "min_stat_team":        3,   # hit X+ [stat] in a season for [team]
+    "min_stat_division":    2,   # hit X+ [stat] in a season for any [division] team
+    "rival_pair":           2,   # played for both teams in a rivalry
+}
+
+# Weighted list for random.choices()
+_PROMPT_TYPES  = list(PROMPT_TYPE_WEIGHTS.keys())
+_PROMPT_WEIGHTS = list(PROMPT_TYPE_WEIGHTS.values())
+
+# Classic rivalries — pairs of teams where playing for both is interesting
+RIVAL_PAIRS = [
+    ("NYY", "BOS"),   # Yankees / Red Sox
+    ("NYY", "NYM"),   # Subway Series
+    ("LAD", "SFG"),   # Dodgers / Giants
+    ("CHC", "STL"),   # Cubs / Cardinals
+    ("CHW", "CHC"),   # Chicago crosstown
+    ("LAD", "LAA"),   # LA crosstown
+    ("OAK", "SFG"),   # Bay Bridge
+    ("NYM", "PHI"),   # NL East rivals
+    ("BOS", "TOR"),   # AL East
+    ("HOU", "TEX"),   # AL West rivals
+]
+
+# Minimum stat thresholds for min_stat prompts
+# Tuned so that a reasonable pool of players qualifies (not too rare)
+MIN_STAT_THRESHOLDS = {
+    "HR":  [20, 25, 30, 35, 40],
+    "RBI": [80, 90, 100, 110],
+    "SB":  [20, 30, 40, 50],
+    "3B":  [5, 8, 10, 12],
+    "AVG": [0.290, 0.300, 0.310, 0.320],
+    "WAR": [3.0, 4.0, 5.0, 6.0],
+    # ERA: ascending — "ERA below X" thresholds
+    "ERA": [3.50, 3.25, 3.00, 2.75],
+}
 
 YEAR_RANGE = (1990, 2025)
 
@@ -104,7 +157,9 @@ def _season_matches(season: dict,
                     team: str | None,
                     division: str | None,
                     year_min: int | None,
-                    year_max: int | None) -> bool:
+                    year_max: int | None,
+                    min_stat_key: str | None = None,
+                    min_stat_val: float | None = None) -> bool:
     """Return True if a season dict passes all active filters."""
     if year_min and season["year"] < year_min:
         return False
@@ -114,6 +169,19 @@ def _season_matches(season: dict,
         return False
     if division and season.get("division") != division:
         return False
+    # Minimum stat threshold — season must have the stat at or beyond the threshold
+    if min_stat_key is not None and min_stat_val is not None:
+        v = season.get(min_stat_key)
+        if v is None:
+            return False
+        stat_cfg = STAT_CONFIG.get(min_stat_key, {})
+        if stat_cfg.get("ascending"):
+            # ERA-style: lower is better, so "min" means "at most"
+            if v > min_stat_val:
+                return False
+        else:
+            if v < min_stat_val:
+                return False
     return True
 
 
@@ -121,7 +189,9 @@ def _matching_seasons(player_name: str,
                       team: str | None = None,
                       division: str | None = None,
                       year_min: int | None = None,
-                      year_max: int | None = None) -> list[dict]:
+                      year_max: int | None = None,
+                      min_stat_key: str | None = None,
+                      min_stat_val: float | None = None) -> list[dict]:
     """Return all seasons for a player that pass the given filters."""
     index = _load_index()
     entry = index.get(player_name)
@@ -129,7 +199,8 @@ def _matching_seasons(player_name: str,
         return []
     return [
         s for s in entry["seasons"]
-        if _season_matches(s, team, division, year_min, year_max)
+        if _season_matches(s, team, division, year_min, year_max,
+                           min_stat_key, min_stat_val)
     ]
 
 
@@ -143,16 +214,24 @@ def search_players(query: str,
                    year_min: int | None = None,
                    year_max: int | None = None,
                    stat_key: str | None = None,
-                   limit: int = 10) -> list[dict]:
+                   limit: int = 10,
+                   # New constraint fields
+                   min_teams: int | None = None,           # career must span N+ teams
+                   league: str | None = None,              # "AL" or "NL" (exclusive)
+                   rival_team: str | None = None,          # must ALSO have played for this team
+                   min_stat_key: str | None = None,        # stat key for threshold filter
+                   min_stat_val: float | None = None,      # threshold value
+                   ) -> list[dict]:
     """
     Autocomplete search. Returns players whose name contains `query`
-    and who have at least one qualifying season matching the filters.
+    and who have at least one qualifying season matching all filters.
 
-    Each result dict:
-        name, type, matching_seasons (count), teams (list of unique teams)
-
-    Example:
-        search_players("harper", team="WSN", year_min=2012, year_max=2018)
+    New constraint parameters:
+        min_teams    — player must have played for at least this many distinct teams
+        league       — "AL" or "NL": player's entire career must be in that league only
+        rival_team   — player must have also played for this additional team at any point
+        min_stat_key/val — player must have had at least one season meeting this threshold
+                           (combined with team/division filters if those are set)
     """
     index = _load_index()
     query_lower = query.strip().lower()
@@ -160,7 +239,6 @@ def search_players(query: str,
 
     stat_type = STAT_CONFIG[stat_key]["type"] if stat_key else None
 
-    # The index stores "batter" / "pitcher" — map config types to match
     STAT_TYPE_TO_PLAYER_TYPE = {
         "batting":  "batter",
         "pitching": "pitcher",
@@ -170,16 +248,41 @@ def search_players(query: str,
         if query_lower not in name.lower():
             continue
 
-        # Filter by stat type (batting vs pitching), skip filter for "both" (WAR)
+        # Filter by stat type
         if stat_type and stat_type != "both":
             expected_player_type = STAT_TYPE_TO_PLAYER_TYPE.get(stat_type)
             if entry["type"] != expected_player_type:
                 continue
 
-        # Check if any seasons match the prompt constraints
-        matching = _matching_seasons(name, team, division, year_min, year_max)
+        # ── Career-level filters (use pre-computed summary fields) ──────
 
-        # Also filter seasons that have a value for the requested stat
+        # Multi-team: career must span N+ distinct teams
+        if min_teams is not None:
+            if entry.get("career_team_count", 0) < min_teams:
+                continue
+
+        # League exclusivity: all career teams must be in the specified league
+        if league is not None:
+            career_leagues = entry.get("career_leagues", [])
+            # Must have played in the league AND never played in the other
+            if league not in career_leagues:
+                continue
+            other = "NL" if league == "AL" else "AL"
+            if other in career_leagues:
+                continue
+
+        # Rival pair: must have played for rival_team at some point in career
+        if rival_team is not None:
+            if rival_team not in entry.get("career_teams", []):
+                continue
+
+        # ── Season-level filters ─────────────────────────────────────────
+
+        # matching seasons respects team/division/year range + min stat threshold
+        matching = _matching_seasons(name, team, division, year_min, year_max,
+                                     min_stat_key, min_stat_val)
+
+        # Filter seasons that have a value for the scoring stat
         if stat_key:
             matching = [s for s in matching if s.get(stat_key) is not None]
 
@@ -194,7 +297,6 @@ def search_players(query: str,
             "teams":            sorted(unique_teams),
         })
 
-    # Sort by most matching seasons (most relevant players first)
     results.sort(key=lambda r: r["matching_seasons"], reverse=True)
     return results[:limit]
 
@@ -204,7 +306,9 @@ def get_valid_years(player_name: str,
                     division: str | None = None,
                     year_min: int | None = None,
                     year_max: int | None = None,
-                    stat_key: str | None = None) -> list[int]:
+                    stat_key: str | None = None,
+                    min_stat_key: str | None = None,
+                    min_stat_val: float | None = None) -> list[int]:
     """
     Return the list of years a player qualifies for, given the slot constraints.
     Used to populate the year dropdown after a player is selected.
@@ -213,7 +317,8 @@ def get_valid_years(player_name: str,
         get_valid_years("Bryce Harper", team="WSN", year_min=2012, year_max=2018)
         → [2012, 2013, 2014, 2015, 2016, 2017, 2018]
     """
-    seasons = _matching_seasons(player_name, team, division, year_min, year_max)
+    seasons = _matching_seasons(player_name, team, division, year_min, year_max,
+                                min_stat_key, min_stat_val)
     if stat_key:
         seasons = [s for s in seasons if s.get(stat_key) is not None]
     return sorted({s["year"] for s in seasons})
@@ -269,46 +374,124 @@ def get_best_stat(player_name: str,
 # Prompt generator
 # ---------------------------------------------------------------------------
 
+# Prompt types that are valid per stat category
+# "both" stats (WAR) only get the simple positional types — career-level
+# filters are unreliable across the mixed batter/pitcher index.
+_VALID_PROMPT_TYPES: dict[str, list[str]] = {
+    "batting":  list(PROMPT_TYPE_WEIGHTS.keys()),   # all types
+    "pitching": ["team_with_range", "team_only",
+                 "division_with_range", "division_only"],
+    "both":     ["team_with_range", "team_only",
+                 "division_with_range", "division_only"],
+}
+
+# Simple types that are virtually guaranteed to have enough eligible players.
+# Used as guaranteed fallbacks when exotic types keep failing.
+_SIMPLE_PROMPT_TYPES   = ["team_with_range", "team_only",
+                           "division_with_range", "division_only"]
+_SIMPLE_PROMPT_WEIGHTS = [4, 3, 3, 2]
+
+
 def generate_prompts(stat_key: str, n: int = 5) -> list[dict]:
     """
     Generate n random slot prompts for a game round.
 
-    Each prompt is one of:
-        { type: "team",     team: "PHI",     year_min: 2010, year_max: 2020, label: "..." }
-        { type: "team",     team: "NYY",     year_min: None, year_max: None, label: "..." }
-        { type: "division", division: "AL East", year_min: 2005, year_max: 2015, label: "..." }
-        { type: "division", division: "NL West", year_min: None, year_max: None, label: "..." }
+    Strategy:
+      - Phase 1: try up to 60 attempts using the full weighted pool
+        (filtered to types valid for this stat).
+      - Phase 2: if still short, fill remaining slots using only the four
+        simple team/division types which always have plenty of players.
 
-    Only prompts that have at least MIN_PLAYERS eligible players are kept,
-    so every slot is always answerable.
+    This guarantees we always return n prompts while still surfacing
+    exotic constraint types whenever they successfully generate.
     """
     MIN_PLAYERS = 5
-    prompts = []
-    attempts = 0
-    max_attempts = 100
 
-    while len(prompts) < n and attempts < max_attempts:
-        attempts += 1
-        prompt_type = random.choice(PROMPT_TYPES)
-        prompt = _build_prompt(prompt_type, stat_key)
+    stat_type      = STAT_CONFIG[stat_key]["type"]   # "batting" | "pitching" | "both"
+    valid_types    = _VALID_PROMPT_TYPES[stat_type]
+    valid_weights  = [PROMPT_TYPE_WEIGHTS[t] for t in valid_types]
 
-        # Verify that enough players exist for this prompt
-        eligible = search_players("", limit=MIN_PLAYERS + 1, stat_key=stat_key,
-                                  team=prompt.get("team"),
-                                  division=prompt.get("division"),
-                                  year_min=prompt.get("year_min"),
-                                  year_max=prompt.get("year_max"))
-        if len(eligible) >= MIN_PLAYERS:
+    prompts  = []
+
+    # ── Phase 1: attempt exotic + simple types ───────────────────────────
+    for _ in range(60):
+        if len(prompts) >= n:
+            break
+
+        prompt_type = random.choices(valid_types, weights=valid_weights, k=1)[0]
+
+        try:
+            prompt = _build_prompt(prompt_type, stat_key)
+        except ValueError:
+            continue
+
+        eligible = _count_eligible(prompt, stat_key, MIN_PLAYERS)
+        if eligible >= MIN_PLAYERS:
+            prompts.append(prompt)
+
+    # ── Phase 2: guaranteed fallback using simple types only ─────────────
+    fallback_attempts = 0
+    while len(prompts) < n and fallback_attempts < 100:
+        fallback_attempts += 1
+        prompt_type = random.choices(_SIMPLE_PROMPT_TYPES,
+                                     weights=_SIMPLE_PROMPT_WEIGHTS, k=1)[0]
+        try:
+            prompt = _build_prompt(prompt_type, stat_key)
+        except ValueError:
+            continue
+
+        eligible = _count_eligible(prompt, stat_key, MIN_PLAYERS)
+        if eligible >= MIN_PLAYERS:
             prompts.append(prompt)
 
     if len(prompts) < n:
-        logger.warning("Could only generate %d valid prompts (wanted %d)", len(prompts), n)
+        logger.warning("Could only generate %d valid prompts (wanted %d)",
+                       len(prompts), n)
 
     return prompts
 
 
+def _count_eligible(prompt: dict, stat_key: str, limit: int) -> int:
+    """Return the number of eligible players for a prompt, up to limit+1."""
+    results = search_players(
+        "", limit=limit + 1, stat_key=stat_key,
+        team=prompt.get("team"),
+        division=prompt.get("division"),
+        year_min=prompt.get("year_min"),
+        year_max=prompt.get("year_max"),
+        min_teams=prompt.get("min_teams"),
+        league=prompt.get("league"),
+        rival_team=prompt.get("rival_team"),
+        min_stat_key=prompt.get("min_stat_key"),
+        min_stat_val=prompt.get("min_stat_val"),
+    )
+    return len(results)
+
+
 def _build_prompt(prompt_type: str, stat_key: str) -> dict:
-    """Build a single raw prompt dict."""
+    """
+    Build a single prompt dict for the given type.
+    Raises ValueError if a valid prompt cannot be constructed
+    (e.g. no thresholds available for this stat).
+
+    Every prompt dict always contains these keys so callers never
+    need to guard for missing fields:
+        type, team, division, year_min, year_max,
+        min_teams, league, rival_team,
+        min_stat_key, min_stat_val, label
+    """
+    # Base template — all fields default to None
+    base = {
+        "team": None, "division": None,
+        "year_min": None, "year_max": None,
+        "min_teams": None, "league": None, "rival_team": None,
+        "min_stat_key": None, "min_stat_val": None,
+    }
+
+    stat_label = STAT_CONFIG[stat_key]["label"]
+
+    # ── Original prompt types ────────────────────────────────────────────
+
     if prompt_type in ("team_with_range", "team_only"):
         team = random.choice(ALL_TEAMS)
         if prompt_type == "team_with_range":
@@ -317,10 +500,10 @@ def _build_prompt(prompt_type: str, stat_key: str) -> dict:
         else:
             year_min = year_max = None
             label = f"A player who played for the {team} at any point"
-        return {"type": "team", "team": team, "division": None,
+        return {**base, "type": "team", "team": team,
                 "year_min": year_min, "year_max": year_max, "label": label}
 
-    else:  # division_with_range or division_only
+    if prompt_type in ("division_with_range", "division_only"):
         division = random.choice(list(DIVISIONS.keys()))
         if prompt_type == "division_with_range":
             year_min, year_max = _random_year_range()
@@ -328,8 +511,68 @@ def _build_prompt(prompt_type: str, stat_key: str) -> dict:
         else:
             year_min = year_max = None
             label = f"A player who played in the {division} at any point"
-        return {"type": "division", "team": None, "division": division,
+        return {**base, "type": "division", "division": division,
                 "year_min": year_min, "year_max": year_max, "label": label}
+
+    # ── New prompt types ─────────────────────────────────────────────────
+
+    if prompt_type == "multi_team":
+        n_teams = random.choice([3, 4, 5])
+        label   = f"A player who played for at least {n_teams} different teams in their career"
+        return {**base, "type": "multi_team", "min_teams": n_teams, "label": label}
+
+    if prompt_type == "al_only":
+        label = "A player who spent their entire career in the American League"
+        return {**base, "type": "league", "league": "AL", "label": label}
+
+    if prompt_type == "nl_only":
+        label = "A player who spent their entire career in the National League"
+        return {**base, "type": "league", "league": "NL", "label": label}
+
+    if prompt_type == "rival_pair":
+        team_a, team_b = random.choice(RIVAL_PAIRS)
+        label = f"A player who played for both the {team_a} and the {team_b}"
+        # team_a is the primary filter; rival_team ensures they also played for team_b
+        return {**base, "type": "rival_pair",
+                "team": team_a, "rival_team": team_b, "label": label}
+
+    if prompt_type == "min_stat_team":
+        thresholds = MIN_STAT_THRESHOLDS.get(stat_key)
+        if not thresholds:
+            raise ValueError(f"No thresholds for stat {stat_key}")
+        threshold = random.choice(thresholds)
+        team      = random.choice(ALL_TEAMS)
+        ascending = STAT_CONFIG[stat_key]["ascending"]
+        if ascending:
+            label = (f"A player with an ERA below {threshold:.2f} "
+                     f"in a season with the {team}")
+        else:
+            label = (f"A player with at least {threshold} {stat_label} "
+                     f"in a season with the {team}")
+        return {**base, "type": "min_stat_team",
+                "team": team,
+                "min_stat_key": stat_key, "min_stat_val": threshold,
+                "label": label}
+
+    if prompt_type == "min_stat_division":
+        thresholds = MIN_STAT_THRESHOLDS.get(stat_key)
+        if not thresholds:
+            raise ValueError(f"No thresholds for stat {stat_key}")
+        threshold = random.choice(thresholds)
+        division  = random.choice(list(DIVISIONS.keys()))
+        ascending = STAT_CONFIG[stat_key]["ascending"]
+        if ascending:
+            label = (f"A player with an ERA below {threshold:.2f} "
+                     f"in a season in the {division}")
+        else:
+            label = (f"A player with at least {threshold} {stat_label} "
+                     f"in a season in the {division}")
+        return {**base, "type": "min_stat_division",
+                "division": division,
+                "min_stat_key": stat_key, "min_stat_val": threshold,
+                "label": label}
+
+    raise ValueError(f"Unknown prompt type: {prompt_type}")
 
 
 def _random_year_range() -> tuple[int, int]:

@@ -110,6 +110,8 @@ def build_index() -> dict:
                     "RBI":      int(row["RBI"])   if pd.notna(row.get("RBI")) else None,
                     "AVG":      float(row["AVG"]) if pd.notna(row.get("AVG")) else None,
                     "WAR":      float(row["WAR"]) if pd.notna(row.get("WAR")) else None,
+                    "SB":       int(row["SB"])    if pd.notna(row.get("SB"))  else None,
+                    "3B":       int(row["3B"])    if pd.notna(row.get("3B"))  else None,
                 })
         else:
             missing.append(f"batting_{year}.json")
@@ -141,6 +143,25 @@ def build_index() -> dict:
     # Sort each player's seasons chronologically
     for name in plain:
         plain[name]["seasons"].sort(key=lambda s: s["year"])
+
+    # Add career-level summary fields used by advanced prompt filters.
+    # Computing these once at index-build time means zero per-query overhead.
+    for name, entry in plain.items():
+        seasons = entry["seasons"]
+        teams   = list({s["team"] for s in seasons if s.get("team")})
+        leagues = set()
+        for s in seasons:
+            div = s.get("division", "")
+            if div.startswith("AL"):
+                leagues.add("AL")
+            elif div.startswith("NL"):
+                leagues.add("NL")
+
+        entry["career_teams"]       = sorted(teams)           # all unique teams
+        entry["career_team_count"]  = len(teams)              # int — for multi-team filter
+        entry["career_leagues"]     = sorted(leagues)         # ["AL"], ["NL"], or ["AL","NL"]
+        entry["career_year_min"]    = seasons[0]["year"]  if seasons else None
+        entry["career_year_max"]    = seasons[-1]["year"] if seasons else None
 
     return plain, batting_files, pitching_files, missing
 

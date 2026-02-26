@@ -13,7 +13,7 @@ Usage:
     # Fetch a specific year range:
     python warm_cache.py --start 2000 --end 2010
 
-Expected runtime: ~15-30 minutes for the full 1990-2025 range.
+Expected runtime: ~15-30 minutes for the full 1990-2023 range.
 After this, all lookups are instant from local JSON files.
 """
 
@@ -30,7 +30,7 @@ from pybaseball import cache as pybaseball_cache
 # Config
 # ---------------------------------------------------------------------------
 
-YEAR_RANGE   = (1990, 2025)
+YEAR_RANGE   = (1990, 2023)
 MIN_PA       = 200   # minimum plate appearances to qualify (batters)
 MIN_IP       = 40    # minimum innings pitched to qualify (pitchers)
 CACHE_DIR    = Path(__file__).parent / "stat_cache"
@@ -68,7 +68,7 @@ def save(df: pd.DataFrame, year: int, stat_type: str) -> None:
 # Fetch functions
 # ---------------------------------------------------------------------------
 
-BATTING_COLS  = ["Name", "Team", "G", "PA", "HR", "RBI", "AVG", "WAR"]
+BATTING_COLS  = ["Name", "Team", "G", "PA", "HR", "RBI", "AVG", "WAR", "SB", "3B"]
 PITCHING_COLS = ["Name", "Team", "G", "GS", "IP", "ERA", "SO", "WAR", "W", "L"]
 
 
@@ -78,6 +78,8 @@ def fetch_batting_year(year: int) -> pd.DataFrame:
     df = df[cols].copy()
     df["HR"]  = pd.to_numeric(df["HR"],  errors="coerce").fillna(0).astype(int)
     df["RBI"] = pd.to_numeric(df["RBI"], errors="coerce").fillna(0).astype(int)
+    df["SB"]  = pd.to_numeric(df["SB"],  errors="coerce").fillna(0).astype(int)
+    df["3B"]  = pd.to_numeric(df["3B"],  errors="coerce").fillna(0).astype(int)
     df["AVG"] = pd.to_numeric(df["AVG"], errors="coerce").round(3)
     df["WAR"] = pd.to_numeric(df["WAR"], errors="coerce").round(1)
     df["year"] = year

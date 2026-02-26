@@ -116,6 +116,11 @@ def search_players(query: str, slot_index: int, state: dict, limit: int = 10) ->
         year_max=prompt.get("year_max"),
         stat_key=state["stat_key"],
         limit=limit,
+        min_teams=prompt.get("min_teams"),
+        league=prompt.get("league"),
+        rival_team=prompt.get("rival_team"),
+        min_stat_key=prompt.get("min_stat_key"),
+        min_stat_val=prompt.get("min_stat_val"),
     )
 
 
@@ -135,6 +140,8 @@ def get_years_for_pick(player_name: str, slot_index: int, state: dict) -> list[i
         year_min=prompt.get("year_min"),
         year_max=prompt.get("year_max"),
         stat_key=state["stat_key"],
+        min_stat_key=prompt.get("min_stat_key"),
+        min_stat_val=prompt.get("min_stat_val"),
     )
 
 

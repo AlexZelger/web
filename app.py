@@ -132,6 +132,6 @@ def calculate_tips():
 # For local dev only (use a real WSGI/ASGI server for production)
 if __name__ == "__main__":
     # Use socketio.run instead of app.run for WebSocket support
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, debug=True)
     #app.run(debug=True)
 

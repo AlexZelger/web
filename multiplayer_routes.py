@@ -319,6 +319,37 @@ def register_socketio_events(socketio):
             emit("error", {"message": str(e)})
 
 
+    @socketio.on("play_again")
+    def on_play_again(data):
+        """
+        A player clicks 'Play Again' on the results page.
+        Marks them as ready and broadcasts the updated ready count.
+        If everyone is ready, resets the lobby and redirects all to wait screen.
+        """
+        lobby_id  = data.get("lobby_id")
+        player_id = data.get("player_id")
+
+        try:
+            status = lm.mark_ready_for_rematch(lobby_id, player_id)
+
+            # Broadcast current ready count to everyone in the room
+            socketio.emit("rematch_ready_update", {
+                "ready_count":   status["ready_count"],
+                "total_players": status["total_players"],
+                "all_ready":     status["all_ready"],
+            }, to=lobby_id)
+
+            # If everyone clicked Play Again, reset and redirect
+            if status["all_ready"]:
+                lm.reset_lobby(lobby_id)
+                lobby = lm.get_lobby(lobby_id)
+                socketio.emit("lobby_reset", _lobby_summary(lobby), to=lobby_id)
+                logger.info("Lobby %s reset — all players ready for rematch", lobby_id)
+
+        except LobbyError as e:
+            emit("error", {"message": str(e)})
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+<!-- templates/game/results.html -->
+{% extends "base.html" %}  {# replace with your actual base template tag #}
 
 {% block title %}Results — Baseball Draft Game{% endblock %}
 
@@ -261,7 +263,12 @@
     <div class="hero-grade grade-{{ result.grade | lower }}" id="hero-grade">{{ result.grade }}</div>
     <div class="hero-sub">
       {{ (result.efficiency * 100) | round(1) }}% efficiency
-      · max possible {{ result.max_possible | round(1) }}
+      · max possible
+      {% if result.stat_key in ['AVG', 'ERA'] %}
+        {{ "%.3f" | format(result.max_possible) }}
+      {% else %}
+        {{ "%.1f" | format(result.max_possible) }}
+      {% endif %}
     </div>
     <div class="efficiency-bar">
       <div class="eff-labels">
@@ -289,22 +296,29 @@
 <script>
   const RESULT = {{ result | tojson }};
 
+  // Decimal places depend on stat — AVG and ERA need 3, others need 1
+  const SCORE_DECIMALS = (RESULT.stat_key === "AVG" || RESULT.stat_key === "ERA") ? 3 : 1;
+
+  function fmtVal(v) {
+    if (v === null || v === undefined) return "—";
+    return Number(v).toFixed(SCORE_DECIMALS);
+  }
+
   // ── Animated score counter ─────────────────────────────────────────────
-  function animateCount(el, target, duration, isFloat) {
+  function animateCount(el, target, duration) {
     const start = performance.now();
     function step(now) {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       const val = target * eased;
-      el.textContent = isFloat ? val.toFixed(1) : Math.round(val);
+      el.textContent = Number(val).toFixed(SCORE_DECIMALS);
       if (progress < 1) requestAnimationFrame(step);
-      else el.textContent = isFloat ? target.toFixed(1) : target;
+      else el.textContent = Number(target).toFixed(SCORE_DECIMALS);
     }
     requestAnimationFrame(step);
   }
 
-  const isFloat = !Number.isInteger(RESULT.total_score);
-  animateCount(document.getElementById('hero-score'), RESULT.total_score, 1200, isFloat);
+  animateCount(document.getElementById('hero-score'), RESULT.total_score, 1200);
 
   // Animate efficiency bar
   setTimeout(() => {
@@ -319,7 +333,7 @@
     const yourPct = maxBest ? (slot.stat_value / maxBest * 100) : 0;
     const bestPct = maxBest ? (slot.best_value / maxBest * 100) : 0;
     const leftOnTable = slot.points_left > 0
-      ? `<div class="left-on-table">−${typeof slot.points_left === 'number' ? slot.points_left.toFixed ? slot.points_left.toFixed(1) : slot.points_left : slot.points_left} left on table</div>`
+      ? `<div class="left-on-table">−${Number(slot.points_left).toFixed(SCORE_DECIMALS)} left on table</div>`
       : '';
 
     const row = document.createElement('div');
@@ -334,17 +348,17 @@
           <div class="bar-wrap">
             <div class="bar-label">Your pick</div>
             <div class="bar-track"><div class="bar-fill yours" data-pct="${yourPct}"></div></div>
-            <div class="bar-val">${slot.stat_value}</div>
+            <div class="bar-val">${fmtVal(slot.stat_value)}</div>
           </div>
           <div class="bar-wrap">
             <div class="bar-label">Best year</div>
             <div class="bar-track"><div class="bar-fill best" data-pct="${bestPct}"></div></div>
-            <div class="bar-val">${slot.best_value}</div>
+            <div class="bar-val">${fmtVal(slot.best_value)}</div>
           </div>
         </div>
       </div>
       <div class="row-score">
-        <div class="score-big">${slot.stat_value}</div>
+        <div class="score-big">${fmtVal(slot.stat_value)}</div>
         <div class="score-small">${RESULT.stat_label}</div>
         ${leftOnTable}
       </div>

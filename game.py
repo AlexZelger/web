@@ -291,13 +291,13 @@ def score_game(state: dict) -> dict:
             "efficiency":  efficiency,
         })
 
-    overall_efficiency = round(total_score / max_possible, 3) if max_possible else 0
+    overall_efficiency = round(total_score / max_possible, 4) if max_possible else 0
 
     result = {
         "stat_key":      stat_key,
         "stat_label":    STAT_CONFIG[stat_key]["label"],
-        "total_score":   round(total_score, 1),
-        "max_possible":  round(max_possible, 1),
+        "total_score":   round(total_score, 4),    # full precision for sorting/ranking
+        "max_possible":  round(max_possible, 4),   # full precision for efficiency calc
         "efficiency":    overall_efficiency,
         "grade":         _grade(overall_efficiency),
         "slots":         slot_results,

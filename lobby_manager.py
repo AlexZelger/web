@@ -11,6 +11,7 @@ Public API:
     join_lobby(lobby_id, name)      → player_id  (or raises LobbyError)
     start_game(lobby_id, player_id) → prompts    (host only)
     submit_score(lobby_id, player_id, result) → updated scoreboard
+    reset_lobby(lobby_id, player_id) → ready_count, total, all_ready
     get_lobby(lobby_id)             → lobby dict (safe copy)
     get_player(lobby_id, player_id) → player dict
     cleanup_stale_lobbies()         → removes lobbies older than MAX_AGE
@@ -65,14 +66,15 @@ def _make_player_id() -> str:
 
 def _player_entry(name: str, is_host: bool = False) -> dict:
     return {
-        "name":       name.strip()[:24],   # cap display name length
-        "is_host":    is_host,
-        "status":     "waiting",           # waiting | playing | finished
-        "score":      None,
-        "efficiency": None,
-        "grade":      None,
-        "picks":      [],
-        "joined_at":  time.time(),
+        "name":              name.strip()[:24],
+        "is_host":           is_host,
+        "status":            "waiting",    # waiting | playing | finished
+        "score":             None,
+        "efficiency":        None,
+        "grade":             None,
+        "picks":             [],
+        "ready_for_rematch": False,        # True once they click Play Again
+        "joined_at":         time.time(),
     }
 
 # ---------------------------------------------------------------------------
@@ -173,6 +175,57 @@ def start_game(lobby_id: str, player_id: str) -> list[dict]:
     return prompts
 
 
+def mark_ready_for_rematch(lobby_id: str, player_id: str) -> dict:
+    """
+    Mark a player as wanting to play again.
+    Returns { ready_count, total_players, all_ready }.
+    Raises LobbyError if lobby isn't finished yet.
+    """
+    lobby  = _get_lobby_raw(lobby_id)
+    player = _get_player_raw(lobby, player_id)
+
+    if lobby["status"] != "finished":
+        raise LobbyError("Cannot ready up — game is not finished yet.")
+
+    player["ready_for_rematch"] = True
+    lobby["updated_at"] = time.time()
+
+    ready_count = sum(1 for p in lobby["players"].values() if p["ready_for_rematch"])
+    total       = len(lobby["players"])
+    all_ready   = ready_count == total
+
+    logger.info("Player %s ready for rematch in lobby %s (%d/%d)",
+                player_id, lobby_id, ready_count, total)
+    return {"ready_count": ready_count, "total_players": total, "all_ready": all_ready}
+
+
+def reset_lobby(lobby_id: str) -> None:
+    """
+    Reset a finished lobby back to waiting state so players can play again.
+    Keeps all players in the room but clears scores, picks, and ready flags.
+    """
+    lobby = _get_lobby_raw(lobby_id)
+
+    if lobby["status"] != "finished":
+        raise LobbyError("Can only reset a finished lobby.")
+
+    lobby["status"]     = "waiting"
+    lobby["stat_key"]   = None
+    lobby["stat_label"] = None
+    lobby["prompts"]    = []
+    lobby["updated_at"] = time.time()
+
+    for p in lobby["players"].values():
+        p["status"]            = "waiting"
+        p["score"]             = None
+        p["efficiency"]        = None
+        p["grade"]             = None
+        p["picks"]             = []
+        p["ready_for_rematch"] = False
+
+    logger.info("Lobby %s reset for rematch", lobby_id)
+
+
 def submit_score(lobby_id: str, player_id: str, result: dict) -> dict:
     """
     Record a player's final score. Returns the updated scoreboard.
@@ -256,6 +309,7 @@ def build_scoreboard(lobby_id: str) -> dict:
     return {
         "lobby_id":    lobby_id,
         "status":      lobby["status"],
+        "stat_key":    lobby["stat_key"],
         "stat_label":  lobby["stat_label"],
         "players":     ranked,
         "all_done":    lobby["status"] == "finished",

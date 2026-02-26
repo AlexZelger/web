@@ -1,0 +1,110 @@
+<!-- templates/game/mp_join.html -->
+{% extends "base.html" %}
+{% block title %}Join Lobby — Baseball Draft Game{% endblock %}
+
+{% block head %}
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green2: #0f2218; --cream: #f5ecd7; --gold: #c9933a;
+    --dim: rgba(245,236,215,0.5); --border: rgba(201,147,58,0.3);
+  }
+  .mp-page {
+    background: var(--green2); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 40px 16px; font-family: 'IBM Plex Mono', monospace; position: relative;
+  }
+  .mp-page::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px),
+      repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  .mp-card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 12px; padding: 48px; max-width: 440px; width: 100%;
+    animation: fadeUp 0.5s ease both;
+  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  .lobby-code {
+    font-family: 'Bebas Neue', sans-serif; font-size: 13px;
+    letter-spacing: 0.2em; color: var(--gold); text-align: center; margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 36px;
+    letter-spacing: 0.04em; color: var(--cream); text-align: center;
+    line-height: 1.1; margin-bottom: 6px;
+  }
+  .player-count {
+    font-size: 12px; color: var(--dim); text-align: center; margin-bottom: 32px;
+  }
+  .players-preview {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 28px; justify-content: center;
+  }
+  .player-chip {
+    background: rgba(201,147,58,0.12); border: 1px solid rgba(201,147,58,0.3);
+    border-radius: 999px; padding: 5px 14px; font-size: 12px; color: var(--cream);
+  }
+  .player-chip.host::after { content: ' ★'; color: var(--gold); }
+  .section-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 12px;
+  }
+  .mp-input {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--cream); font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px; padding: 11px 14px; outline: none;
+    transition: border-color 0.2s; margin-bottom: 12px;
+  }
+  .mp-input:focus { border-color: var(--gold); }
+  .mp-input::placeholder { color: rgba(245,236,215,0.3); }
+  .mp-btn {
+    width: 100%; background: var(--gold); color: var(--green2);
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    letter-spacing: 0.08em; padding: 12px; border: none;
+    border-radius: 6px; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .mp-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .error-msg {
+    background: rgba(176,48,48,0.15); border: 1px solid rgba(176,48,48,0.4);
+    border-radius: 6px; padding: 10px 14px; font-size: 12px;
+    color: #e07070; margin-bottom: 20px;
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="mp-page">
+  <div class="mp-card">
+    <div class="lobby-code">Lobby · {{ lobby_id }}</div>
+    <h1>Join the Game</h1>
+    <p class="player-count">{{ lobby.players | length }} player{{ 's' if lobby.players | length != 1 }} waiting</p>
+
+    {% if lobby.players %}
+    <div class="players-preview">
+      {% for pid, p in lobby.players.items() %}
+      <div class="player-chip {{ 'host' if p.is_host }}">{{ p.name }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="error-msg">{{ error }}</div>
+    {% endif %}
+
+    <div class="section-label">Your Display Name</div>
+    <form method="POST">
+      <input class="mp-input" type="text" name="name" placeholder="Enter your name…"
+             maxlength="24" required autocomplete="off" autofocus/>
+      <button class="mp-btn" type="submit">Join Lobby</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

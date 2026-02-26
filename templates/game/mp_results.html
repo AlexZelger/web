@@ -1,0 +1,253 @@
+<!-- templates/game/mp_results.html -->
+{% extends "base.html" %}
+{% block title %}Scoreboard — Baseball Draft Game{% endblock %}
+
+{% block head %}
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green2: #0f2218; --cream: #f5ecd7; --gold: #c9933a;
+    --dim: rgba(245,236,215,0.5); --border: rgba(201,147,58,0.3);
+  }
+  body {
+    background: var(--green2); color: var(--cream);
+    font-family: 'IBM Plex Mono', monospace; min-height: 100vh; padding: 24px 16px 80px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px),
+      repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  .page { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 32px;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.06em; color: var(--cream); text-decoration: none; }
+
+  /* Status banner */
+  .status-banner {
+    text-align: center; padding: 32px 24px 28px; margin-bottom: 28px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .status-eyebrow { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .status-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 0.04em; color: var(--cream); line-height: 1; }
+  .status-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .progress-row { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 16px; }
+  .progress-label { font-size: 11px; color: var(--dim); }
+  .progress-track { width: 160px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width 0.6s ease; }
+  .dot-pulse { display: flex; gap: 4px; align-items: center; }
+  .dot-pulse span { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+  .dot-pulse span:nth-child(2){animation-delay:0.2s} .dot-pulse span:nth-child(3){animation-delay:0.4s}
+  @keyframes pulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}
+
+  /* Scoreboard table */
+  .section-label {
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  .scoreboard { display: flex; flex-direction: column; gap: 10px; margin-bottom: 36px; }
+
+  .score-row {
+    display: grid; grid-template-columns: 40px 1fr auto;
+    align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px;
+    animation: slideIn 0.4s ease both;
+    transition: border-color 0.3s;
+  }
+  .score-row.me { border-color: rgba(201,147,58,0.5); }
+  .score-row.first-place { border-color: rgba(201,147,58,0.8); background: rgba(201,147,58,0.06); }
+  @keyframes slideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .score-row:nth-child(1){animation-delay:0.05s} .score-row:nth-child(2){animation-delay:0.10s}
+  .score-row:nth-child(3){animation-delay:0.15s} .score-row:nth-child(4){animation-delay:0.20s}
+  .score-row:nth-child(5){animation-delay:0.25s}
+
+  .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--gold); line-height: 1; text-align: center; }
+  .rank-num.pending { font-size: 18px; color: var(--dim); }
+
+  .player-info { min-width: 0; }
+  .player-name-row { display: flex; align-items: center; gap: 8px; }
+  .player-display-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--cream); letter-spacing: 0.03em; line-height: 1; }
+  .you-badge { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(201,147,58,0.15); border: 1px solid rgba(201,147,58,0.3); color: var(--gold); }
+  .host-badge { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--dim); }
+  .player-status-text { font-size: 11px; color: var(--dim); margin-top: 3px; }
+  .player-status-text.playing { color: var(--gold); }
+
+  .score-right { text-align: right; }
+  .score-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); line-height: 1; }
+  .score-value.pending { font-size: 20px; color: var(--dim); }
+  .grade-badge {
+    display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: 13px;
+    padding: 2px 10px; border-radius: 4px; margin-top: 4px; letter-spacing: 0.08em;
+  }
+  .grade-s{background:#a8d8a0;color:#0f2218} .grade-a{background:var(--gold);color:#0f2218}
+  .grade-b{background:#7eb8d4;color:#0f2218} .grade-c{background:#d4c47e;color:#1a1000}
+  .grade-d{background:#c47e7e;color:#1a0000} .grade-f{background:#b03030;color:#fff}
+
+  /* Actions */
+  .actions { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-gold {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.1em;
+    padding: 12px 40px; background: var(--gold); color: var(--green2);
+    border: none; border-radius: 6px; cursor: pointer; text-decoration: none;
+    display: inline-block; transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+  }
+  .btn-gold:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 rgba(0,0,0,0.3); }
+  .btn-outline {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.1em;
+    padding: 12px 40px; background: transparent; color: var(--cream);
+    border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+    text-decoration: none; display: inline-block; transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <header>
+    <a href="/game/" class="logo">⚾ Draft Game</a>
+    <div style="font-size:11px;color:var(--dim);letter-spacing:0.08em;">
+      LOBBY · {{ scoreboard.lobby_id }}
+    </div>
+  </header>
+
+  <!-- Status banner -->
+  <div class="status-banner">
+    <div class="status-eyebrow">{{ scoreboard.stat_label }} · Multiplayer</div>
+    <div class="status-title" id="status-title">
+      {% if scoreboard.all_done %}Final Scores{% else %}Live Scoreboard{% endif %}
+    </div>
+    <div class="status-sub" id="status-sub">
+      {% if scoreboard.all_done %}
+        All {{ scoreboard.total_players }} players finished
+      {% else %}
+        {{ scoreboard.done_count }} of {{ scoreboard.total_players }} players finished
+      {% endif %}
+    </div>
+    {% if not scoreboard.all_done %}
+    <div class="progress-row">
+      <span class="progress-label">{{ scoreboard.done_count }}/{{ scoreboard.total_players }}</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"
+             style="width:{{ (scoreboard.done_count / scoreboard.total_players * 100) | round }}%"></div>
+      </div>
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="section-label">Standings</div>
+  <div class="scoreboard" id="scoreboard">
+    {% for p in scoreboard.players %}
+    <div class="score-row {{ 'me' if p.player_id == player_id }} {{ 'first-place' if p.rank == 1 and scoreboard.all_done }}"
+         id="row-{{ p.player_id }}">
+      <div class="rank-num {{ 'pending' if not p.rank }}">
+        {{ p.rank if p.rank else '—' }}
+      </div>
+      <div class="player-info">
+        <div class="player-name-row">
+          <div class="player-display-name">{{ p.name }}</div>
+          {% if p.player_id == player_id %}<span class="you-badge">You</span>{% endif %}
+          {% if p.is_host %}<span class="host-badge">Host</span>{% endif %}
+        </div>
+        <div class="player-status-text {{ 'playing' if p.status == 'playing' }}">
+          {% if p.status == 'finished' %}
+            {{ (p.efficiency * 100) | round(1) }}% efficiency
+          {% else %}
+            Still playing…
+          {% endif %}
+        </div>
+      </div>
+      <div class="score-right">
+        {% if p.score is not none %}
+          <div class="score-value">{{ p.score | round(1) if p.score % 1 else p.score | int }}</div>
+          <div class="grade-badge grade-{{ p.grade | lower }}">{{ p.grade }}</div>
+        {% else %}
+          <div class="score-value pending">—</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <a href="/mp/" class="btn-gold">New Multiplayer</a>
+    <a href="/game/" class="btn-outline">Solo Game</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const LOBBY_ID  = "{{ scoreboard.lobby_id }}";
+  const PLAYER_ID = "{{ player_id }}";
+
+  const socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("join_lobby_room",    { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+    socket.emit("request_scoreboard", { lobby_id: LOBBY_ID });
+  });
+
+  socket.on("scoreboard_updated", (data) => {
+    updateScoreboard(data);
+  });
+
+  socket.on("game_over", (data) => {
+    updateScoreboard(data);
+    document.getElementById("status-title").textContent = "Final Scores";
+  });
+
+  function updateScoreboard(data) {
+    const board = document.getElementById("scoreboard");
+    const sub   = document.getElementById("status-sub");
+    const fill  = document.getElementById("progress-fill");
+
+    sub.textContent = data.all_done
+      ? `All ${data.total_players} players finished`
+      : `${data.done_count} of ${data.total_players} players finished`;
+
+    if (fill) {
+      fill.style.width = Math.round(data.done_count / data.total_players * 100) + '%';
+    }
+
+    board.innerHTML = data.players.map((p, idx) => `
+      <div class="score-row ${p.player_id === PLAYER_ID ? 'me' : ''} ${p.rank === 1 && data.all_done ? 'first-place' : ''}"
+           style="animation-delay:${idx * 0.05}s">
+        <div class="rank-num ${!p.rank ? 'pending' : ''}">${p.rank || '—'}</div>
+        <div class="player-info">
+          <div class="player-name-row">
+            <div class="player-display-name">${p.name}</div>
+            ${p.player_id === PLAYER_ID ? '<span class="you-badge">You</span>' : ''}
+            ${p.is_host ? '<span class="host-badge">Host</span>' : ''}
+          </div>
+          <div class="player-status-text ${p.status === 'playing' ? 'playing' : ''}">
+            ${p.status === 'finished'
+              ? `${(p.efficiency * 100).toFixed(1)}% efficiency`
+              : 'Still playing…'}
+          </div>
+        </div>
+        <div class="score-right">
+          ${p.score !== null
+            ? `<div class="score-value">${Number.isInteger(p.score) ? p.score : p.score.toFixed(1)}</div>
+               <div class="grade-badge grade-${p.grade.toLowerCase()}">${p.grade}</div>`
+            : '<div class="score-value pending">—</div>'}
+        </div>
+      </div>
+    `).join('');
+  }
+</script>
+{% endblock %}

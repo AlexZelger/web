@@ -1,17 +1,40 @@
+"""
+app.py — Updated for multiplayer support
+=========================================
+Key changes from the single-player version:
+  1. Flask app wrapped with Flask-SocketIO
+  2. Multiplayer blueprint registered
+  3. SocketIO events registered
+
+Install new dependency:
+    pip install flask-socketio
+"""
 from flask import Flask, render_template, jsonify, request
 import random, time
 from datetime import datetime, timezone
-from game_routes import game_bp
+from flask_socketio import SocketIO
+import os
 
 
 import tips
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-fallback")
+g_ftps2 = 32.174
 
-app.secret_key = "change-this-to-a-long-random-secret"
+# ── SocketIO ──────────────────────────────────────────────────────────────
+# async_mode="threading" works on any host without extra dependencies.
+# If you later move to gunicorn + eventlet, change to async_mode="eventlet"
+# and pip install eventlet.
+socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
+
+# ── Blueprints ────────────────────────────────────────────────────────────
+from game_routes import game_bp
 app.register_blueprint(game_bp)
 
-g_ftps2 = 32.174
+from multiplayer_routes import mp_bp, register_socketio_events
+app.register_blueprint(mp_bp)
+register_socketio_events(socketio)   # wire up the SocketIO event handlers
 
 # Generate 1 randomized run for 6-12 players
 def generate_run(num_players: int = 8, names=None):
@@ -108,4 +131,7 @@ def calculate_tips():
 
 # For local dev only (use a real WSGI/ASGI server for production)
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Use socketio.run instead of app.run for WebSocket support
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    #app.run(debug=True)
+

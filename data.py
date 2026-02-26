@@ -72,7 +72,7 @@ def get_team_logo_url(team_abbr: str) -> str | None:
 # Prompt types the game can generate
 PROMPT_TYPES = ["team_with_range", "team_only", "division_with_range", "division_only"]
 
-YEAR_RANGE = (1990, 2023)
+YEAR_RANGE = (1990, 2025)
 
 
 # ---------------------------------------------------------------------------

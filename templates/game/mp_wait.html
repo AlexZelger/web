@@ -1,0 +1,246 @@
+<!-- templates/game/mp_wait.html -->
+{% extends "base.html" %}
+{% block title %}Waiting Room — Baseball Draft Game{% endblock %}
+
+{% block head %}
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green2: #0f2218; --cream: #f5ecd7; --gold: #c9933a;
+    --dim: rgba(245,236,215,0.5); --border: rgba(201,147,58,0.3);
+  }
+  .mp-page {
+    background: var(--green2); min-height: 100vh;
+    font-family: 'IBM Plex Mono', monospace; padding: 40px 16px;
+    position: relative;
+  }
+  .mp-page::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px),
+      repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+
+  .wait-header { text-align: center; margin-bottom: 36px; }
+  .wait-eyebrow {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 52px;
+    letter-spacing: 0.04em; color: var(--cream); line-height: 1;
+  }
+  .wait-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  /* Share link */
+  .share-box {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px 24px; margin-bottom: 28px;
+  }
+  .share-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 10px;
+  }
+  .share-link-row { display: flex; gap: 8px; }
+  .share-link-input {
+    flex: 1; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--cream); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; padding: 8px 12px; outline: none;
+  }
+  .copy-btn {
+    background: rgba(201,147,58,0.15); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--gold); font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 8px 16px; cursor: pointer; transition: background 0.2s; white-space: nowrap;
+  }
+  .copy-btn:hover { background: rgba(201,147,58,0.25); }
+  .copy-btn.copied { color: #a8d8a0; border-color: rgba(168,216,160,0.4); }
+
+  /* Player list */
+  .players-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin-bottom: 28px;
+  }
+  .players-card-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .players-card-title {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold);
+  }
+  .players-count { font-size: 12px; color: var(--dim); }
+  .player-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px; border-bottom: 1px solid rgba(201,147,58,0.1);
+    animation: slideIn 0.3s ease both;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+  .player-row:last-child { border-bottom: none; }
+  .player-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #a8d8a0;
+    flex-shrink: 0; box-shadow: 0 0 6px rgba(168,216,160,0.6);
+  }
+  .player-name { font-size: 14px; color: var(--cream); flex: 1; }
+  .player-badge {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px;
+    background: rgba(201,147,58,0.12); border: 1px solid rgba(201,147,58,0.3);
+    color: var(--gold);
+  }
+  .waiting-pulse {
+    font-size: 11px; color: var(--dim); letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dot-pulse { display: flex; gap: 3px; }
+  .dot-pulse span {
+    width: 4px; height: 4px; border-radius: 50%; background: var(--dim);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100% { opacity:0.3; } 40% { opacity:1; } }
+
+  /* Start button */
+  .start-btn {
+    width: 100%; background: var(--gold); color: var(--green2);
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+    letter-spacing: 0.1em; padding: 16px; border: none;
+    border-radius: 8px; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+  }
+  .start-btn:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.3); }
+  .start-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+  .host-note { font-size: 11px; color: var(--dim); text-align: center; margin-top: 10px; }
+  .guest-note {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; text-align: center;
+    font-size: 13px; color: var(--dim); line-height: 1.6;
+  }
+  .guest-note strong { color: var(--cream); }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="mp-page">
+  <div class="container">
+
+    <div class="wait-header">
+      <div class="wait-eyebrow">Lobby · {{ lobby.lobby_id }}</div>
+      <h1>Waiting Room</h1>
+      <div class="wait-sub" id="wait-sub">Waiting for players to join…</div>
+    </div>
+
+    <!-- Share link -->
+    <div class="share-box">
+      <div class="share-label">Share this link with friends</div>
+      <div class="share-link-row">
+        <input class="share-link-input" id="share-link" type="text" readonly
+               value="{{ request.host_url }}mp/join/{{ lobby.lobby_id }}"/>
+        <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy</button>
+      </div>
+    </div>
+
+    <!-- Player list -->
+    <div class="players-card">
+      <div class="players-card-header">
+        <span class="players-card-title">Players</span>
+        <span class="players-count" id="player-count">{{ lobby.players | length }} joined</span>
+      </div>
+      <div id="player-list">
+        {% for pid, p in lobby.players.items() %}
+        <div class="player-row">
+          <div class="player-dot"></div>
+          <div class="player-name">{{ p.name }}</div>
+          {% if p.is_host %}<span class="player-badge">Host</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Host controls / guest message -->
+    {% if is_host %}
+    <button class="start-btn" id="start-btn" onclick="startGame()">
+      Start Game
+    </button>
+    <div class="host-note">Everyone in the lobby will get the same prompts.</div>
+    {% else %}
+    <div class="guest-note">
+      <div class="waiting-pulse">
+        Waiting for the host to start
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;">
+        The game will begin automatically when <strong>{{ lobby.players | selectattr('is_host') | map(attribute='name') | first }}</strong> starts it.
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const LOBBY_ID  = "{{ lobby.lobby_id }}";
+  const PLAYER_ID = "{{ player_id }}";
+  const IS_HOST   = {{ 'true' if is_host else 'false' }};
+
+  const socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("join_lobby_room", { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+  });
+
+  // Update player list when someone joins
+  socket.on("lobby_updated", (data) => {
+    const list  = document.getElementById("player-list");
+    const count = document.getElementById("player-count");
+    const sub   = document.getElementById("wait-sub");
+
+    count.textContent = data.players.length + " joined";
+    sub.textContent   = data.players.length === 1
+      ? "Waiting for players to join…"
+      : `${data.players.length} player${data.players.length !== 1 ? 's' : ''} ready`;
+
+    list.innerHTML = data.players.map(p => `
+      <div class="player-row">
+        <div class="player-dot"></div>
+        <div class="player-name">${p.name}</div>
+        ${p.is_host ? '<span class="player-badge">Host</span>' : ''}
+      </div>
+    `).join('');
+  });
+
+  // Game started — redirect everyone to the play page
+  socket.on("game_started", () => {
+    window.location.href = `/mp/play/${LOBBY_ID}`;
+  });
+
+  socket.on("error", (data) => {
+    alert(data.message);
+  });
+
+  function startGame() {
+    const btn = document.getElementById("start-btn");
+    btn.disabled    = true;
+    btn.textContent = "Starting…";
+    socket.emit("start_game", { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+  }
+
+  function copyLink() {
+    const input = document.getElementById("share-link");
+    const btn   = document.getElementById("copy-btn");
+    navigator.clipboard.writeText(input.value).then(() => {
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+</script>
+{% endblock %}

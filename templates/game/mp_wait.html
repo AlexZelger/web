@@ -58,6 +58,14 @@
   }
   .copy-btn:hover { background: rgba(201,147,58,0.25); }
   .copy-btn.copied { color: #a8d8a0; border-color: rgba(168,216,160,0.4); }
+  .share-btn {
+    background: var(--gold); border: none;
+    border-radius: 6px; color: var(--green2); font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+    display: none; /* shown via JS only if Web Share API is available */
+  }
+  .share-btn:hover { opacity: 0.85; }
 
   /* Player list */
   .players-card {
@@ -142,6 +150,7 @@
         <input class="share-link-input" id="share-link" type="text" readonly
                value="{{ request.host_url }}mp/join/{{ lobby.lobby_id }}"/>
         <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy</button>
+        <button class="share-btn" id="share-btn" onclick="shareLink()">Share</button>
       </div>
     </div>
 
@@ -241,6 +250,20 @@
       btn.classList.add("copied");
       setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
     });
+  }
+
+  function shareLink() {
+    const url = document.getElementById("share-link").value;
+    navigator.share({
+      title: "⚾ Baseball Draft Game",
+      text:  "Join my Baseball Draft lobby!",
+      url:   url,
+    }).catch(() => {});  // user cancelled — no action needed
+  }
+
+  // Show the native share button only on devices that support it
+  if (navigator.share) {
+    document.getElementById("share-btn").style.display = "inline-block";
   }
 </script>
 {% endblock %}

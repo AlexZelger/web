@@ -109,6 +109,9 @@ def join(lobby_id: str):
             lobby = lm.get_lobby(lobby_id)
         except LobbyError as e:
             return render_template("mp_lobby.html", error=str(e))
+        if lobby["status"] != "waiting":
+            return render_template("mp_join.html", lobby=lobby,
+                                   lobby_id=lobby_id, game_started=True)
         return render_template("mp_join.html", lobby=lobby, lobby_id=lobby_id)
 
     # POST — submit name
@@ -117,6 +120,10 @@ def join(lobby_id: str):
         return render_template("mp_join.html", lobby_id=lobby_id,
                                error="Please enter a display name.")
     try:
+        lobby = lm.get_lobby(lobby_id)
+        if lobby["status"] != "waiting":
+            return render_template("mp_join.html", lobby=lobby,
+                                   lobby_id=lobby_id, game_started=True)
         player_id = lm.join_lobby(lobby_id, name)
         _set_mp_session(lobby_id, player_id, name)
 

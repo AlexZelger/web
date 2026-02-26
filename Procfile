@@ -1,1 +1,1 @@
-web: python -m gunicorn --worker-class geventwebsocket.gunicorn.workers.GeventWebSocketWorker -w 1 app:appp
+web: bash start.sh

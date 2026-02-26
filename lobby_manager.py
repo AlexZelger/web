@@ -236,6 +236,7 @@ def build_scoreboard(lobby_id: str) -> dict:
             "score":      p["score"],
             "efficiency": p["efficiency"],
             "grade":      p["grade"],
+            "picks":      p["picks"],   # list of slot result dicts, empty until finished
         })
 
     # Sort: finished players by score desc, then unfinished alphabetically

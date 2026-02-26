@@ -54,20 +54,85 @@
 
   .scoreboard { display: flex; flex-direction: column; gap: 10px; margin-bottom: 36px; }
 
-  .score-row {
-    display: grid; grid-template-columns: 40px 1fr auto;
-    align-items: center; gap: 12px;
+  /* Wrap each row + its drawer in a card */
+  .score-card {
     background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-    border-radius: 8px; padding: 16px 20px;
+    border-radius: 8px; overflow: hidden;
     animation: slideIn 0.4s ease both;
     transition: border-color 0.3s;
   }
-  .score-row.me { border-color: rgba(201,147,58,0.5); }
-  .score-row.first-place { border-color: rgba(201,147,58,0.8); background: rgba(201,147,58,0.06); }
+  .score-card.me         { border-color: rgba(201,147,58,0.5); }
+  .score-card.first-place{ border-color: rgba(201,147,58,0.8); background: rgba(201,147,58,0.06); }
+  .score-card.expandable { cursor: pointer; }
+  .score-card.expandable .score-row:hover { background: rgba(255,255,255,0.02); }
   @keyframes slideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-  .score-row:nth-child(1){animation-delay:0.05s} .score-row:nth-child(2){animation-delay:0.10s}
-  .score-row:nth-child(3){animation-delay:0.15s} .score-row:nth-child(4){animation-delay:0.20s}
-  .score-row:nth-child(5){animation-delay:0.25s}
+  .score-card:nth-child(1){animation-delay:0.05s} .score-card:nth-child(2){animation-delay:0.10s}
+  .score-card:nth-child(3){animation-delay:0.15s} .score-card:nth-child(4){animation-delay:0.20s}
+  .score-card:nth-child(5){animation-delay:0.25s}
+
+  .score-row {
+    display: grid; grid-template-columns: 40px 1fr auto 24px;
+    align-items: center; gap: 12px; padding: 16px 20px;
+    transition: background 0.15s;
+  }
+
+  .expand-chevron {
+    color: var(--dim); font-size: 12px; transition: transform 0.25s ease;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .score-card.open .expand-chevron { transform: rotate(180deg); }
+  .score-card.no-picks .expand-chevron { opacity: 0; pointer-events: none; }
+
+  /* Picks drawer */
+  .picks-drawer {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+    border-top: 0px solid var(--border);
+  }
+  .score-card.open .picks-drawer {
+    max-height: 600px;
+    border-top-width: 1px;
+  }
+  .picks-inner { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .pick-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(201,147,58,0.12);
+    border-radius: 6px; padding: 10px 14px;
+    animation: fadeIn 0.2s ease both;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+
+  .pick-slot-num {
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+    color: rgba(201,147,58,0.5); text-align: center; line-height: 1;
+  }
+  .pick-detail { min-width: 0; }
+  .pick-player-name {
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+    color: var(--cream); letter-spacing: 0.03em; line-height: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pick-prompt {
+    font-size: 10px; color: var(--dim); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pick-stat-col { text-align: right; flex-shrink: 0; }
+  .pick-stat-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    color: var(--gold); line-height: 1;
+  }
+  .pick-stat-year { font-size: 10px; color: var(--dim); }
+  .pick-efficiency-bar {
+    height: 2px; background: rgba(255,255,255,0.08); border-radius: 999px;
+    margin-top: 4px; overflow: hidden;
+  }
+  .pick-efficiency-fill {
+    height: 100%; border-radius: 999px; background: var(--gold);
+    transition: width 0.6s ease 0.1s;
+  }
 
   .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--gold); line-height: 1; text-align: center; }
   .rank-num.pending { font-size: 18px; color: var(--dim); }
@@ -150,33 +215,59 @@
   <div class="section-label">Standings</div>
   <div class="scoreboard" id="scoreboard">
     {% for p in scoreboard.players %}
-    <div class="score-row {{ 'me' if p.player_id == player_id }} {{ 'first-place' if p.rank == 1 and scoreboard.all_done }}"
-         id="row-{{ p.player_id }}">
-      <div class="rank-num {{ 'pending' if not p.rank }}">
-        {{ p.rank if p.rank else '—' }}
-      </div>
-      <div class="player-info">
-        <div class="player-name-row">
-          <div class="player-display-name">{{ p.name }}</div>
-          {% if p.player_id == player_id %}<span class="you-badge">You</span>{% endif %}
-          {% if p.is_host %}<span class="host-badge">Host</span>{% endif %}
+    {% set has_picks = p.picks and p.picks | length > 0 %}
+    <div class="score-card {{ 'me' if p.player_id == player_id }} {{ 'first-place' if p.rank == 1 and scoreboard.all_done }} {{ 'expandable' if has_picks else 'no-picks' }}"
+         id="card-{{ p.player_id }}"
+         onclick="{{ 'toggleCard(this)' if has_picks else '' }}">
+      <div class="score-row">
+        <div class="rank-num {{ 'pending' if not p.rank }}">{{ p.rank if p.rank else '—' }}</div>
+        <div class="player-info">
+          <div class="player-name-row">
+            <div class="player-display-name">{{ p.name }}</div>
+            {% if p.player_id == player_id %}<span class="you-badge">You</span>{% endif %}
+            {% if p.is_host %}<span class="host-badge">Host</span>{% endif %}
+          </div>
+          <div class="player-status-text {{ 'playing' if p.status == 'playing' }}">
+            {% if p.status == 'finished' %}
+              {{ (p.efficiency * 100) | round(1) }}% efficiency · click to see picks
+            {% else %}
+              Still playing…
+            {% endif %}
+          </div>
         </div>
-        <div class="player-status-text {{ 'playing' if p.status == 'playing' }}">
-          {% if p.status == 'finished' %}
-            {{ (p.efficiency * 100) | round(1) }}% efficiency
+        <div class="score-right">
+          {% if p.score is not none %}
+            <div class="score-value">{{ p.score | round(1) if p.score % 1 else p.score | int }}</div>
+            <div class="grade-badge grade-{{ p.grade | lower }}">{{ p.grade }}</div>
           {% else %}
-            Still playing…
+            <div class="score-value pending">—</div>
           {% endif %}
         </div>
+        <div class="expand-chevron">▼</div>
       </div>
-      <div class="score-right">
-        {% if p.score is not none %}
-          <div class="score-value">{{ p.score | round(1) if p.score % 1 else p.score | int }}</div>
-          <div class="grade-badge grade-{{ p.grade | lower }}">{{ p.grade }}</div>
-        {% else %}
-          <div class="score-value pending">—</div>
-        {% endif %}
+
+      {% if has_picks %}
+      <div class="picks-drawer">
+        <div class="picks-inner">
+          {% for pick in p.picks %}
+          <div class="pick-row" style="animation-delay:{{ loop.index0 * 0.05 }}s">
+            <div class="pick-slot-num">{{ loop.index }}</div>
+            <div class="pick-detail">
+              <div class="pick-player-name">{{ pick.player }}</div>
+              <div class="pick-prompt">{{ pick.label }}</div>
+              <div class="pick-efficiency-bar">
+                <div class="pick-efficiency-fill" style="width:{{ (pick.efficiency * 100) | round }}%"></div>
+              </div>
+            </div>
+            <div class="pick-stat-col">
+              <div class="pick-stat-val">{{ pick.stat_value }}</div>
+              <div class="pick-stat-year">{{ pick.year }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
       </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
@@ -211,6 +302,36 @@
     document.getElementById("status-title").textContent = "Final Scores";
   });
 
+  function toggleCard(card) {
+    card.classList.toggle('open');
+  }
+
+  function fmtScore(s) {
+    if (s === null) return null;
+    return Number.isInteger(s) ? s : s.toFixed(1);
+  }
+
+  function buildPicksDrawer(picks, statLabel) {
+    if (!picks || !picks.length) return '';
+    const rows = picks.map((pick, i) => `
+      <div class="pick-row" style="animation-delay:${i * 0.05}s">
+        <div class="pick-slot-num">${i + 1}</div>
+        <div class="pick-detail">
+          <div class="pick-player-name">${pick.player}</div>
+          <div class="pick-prompt">${pick.label || ''}</div>
+          <div class="pick-efficiency-bar">
+            <div class="pick-efficiency-fill" style="width:${Math.round((pick.efficiency||0)*100)}%"></div>
+          </div>
+        </div>
+        <div class="pick-stat-col">
+          <div class="pick-stat-val">${pick.stat_value ?? '—'}</div>
+          <div class="pick-stat-year">${pick.year}</div>
+        </div>
+      </div>
+    `).join('');
+    return `<div class="picks-drawer"><div class="picks-inner">${rows}</div></div>`;
+  }
+
   function updateScoreboard(data) {
     const board = document.getElementById("scoreboard");
     const sub   = document.getElementById("status-sub");
@@ -220,34 +341,52 @@
       ? `All ${data.total_players} players finished`
       : `${data.done_count} of ${data.total_players} players finished`;
 
-    if (fill) {
-      fill.style.width = Math.round(data.done_count / data.total_players * 100) + '%';
-    }
+    if (fill) fill.style.width = Math.round(data.done_count / data.total_players * 100) + '%';
 
-    board.innerHTML = data.players.map((p, idx) => `
-      <div class="score-row ${p.player_id === PLAYER_ID ? 'me' : ''} ${p.rank === 1 && data.all_done ? 'first-place' : ''}"
-           style="animation-delay:${idx * 0.05}s">
-        <div class="rank-num ${!p.rank ? 'pending' : ''}">${p.rank || '—'}</div>
-        <div class="player-info">
-          <div class="player-name-row">
-            <div class="player-display-name">${p.name}</div>
-            ${p.player_id === PLAYER_ID ? '<span class="you-badge">You</span>' : ''}
-            ${p.is_host ? '<span class="host-badge">Host</span>' : ''}
+    // Preserve which cards are currently open before re-rendering
+    const openIds = new Set(
+      [...board.querySelectorAll('.score-card.open')].map(el => el.id)
+    );
+
+    board.innerHTML = data.players.map((p, idx) => {
+      const hasPicks   = p.picks && p.picks.length > 0;
+      const isOpen     = openIds.has(`card-${p.player_id}`);
+      const scoreHtml  = fmtScore(p.score) !== null
+        ? `<div class="score-value">${fmtScore(p.score)}</div>
+           <div class="grade-badge grade-${p.grade.toLowerCase()}">${p.grade}</div>`
+        : `<div class="score-value pending">—</div>`;
+      const statusText = p.status === 'finished'
+        ? `${(p.efficiency * 100).toFixed(1)}% efficiency · click to see picks`
+        : 'Still playing…';
+
+      return `
+        <div class="score-card
+             ${p.player_id === PLAYER_ID ? 'me' : ''}
+             ${p.rank === 1 && data.all_done ? 'first-place' : ''}
+             ${hasPicks ? 'expandable' : 'no-picks'}
+             ${isOpen ? 'open' : ''}"
+             id="card-${p.player_id}"
+             style="animation-delay:${idx * 0.05}s"
+             ${hasPicks ? 'onclick="toggleCard(this)"' : ''}>
+          <div class="score-row">
+            <div class="rank-num ${!p.rank ? 'pending' : ''}">${p.rank || '—'}</div>
+            <div class="player-info">
+              <div class="player-name-row">
+                <div class="player-display-name">${p.name}</div>
+                ${p.player_id === PLAYER_ID ? '<span class="you-badge">You</span>' : ''}
+                ${p.is_host ? '<span class="host-badge">Host</span>' : ''}
+              </div>
+              <div class="player-status-text ${p.status === 'playing' ? 'playing' : ''}">
+                ${statusText}
+              </div>
+            </div>
+            <div class="score-right">${scoreHtml}</div>
+            <div class="expand-chevron">▼</div>
           </div>
-          <div class="player-status-text ${p.status === 'playing' ? 'playing' : ''}">
-            ${p.status === 'finished'
-              ? `${(p.efficiency * 100).toFixed(1)}% efficiency`
-              : 'Still playing…'}
-          </div>
+          ${hasPicks ? buildPicksDrawer(p.picks, data.stat_label) : ''}
         </div>
-        <div class="score-right">
-          ${p.score !== null
-            ? `<div class="score-value">${Number.isInteger(p.score) ? p.score : p.score.toFixed(1)}</div>
-               <div class="grade-badge grade-${p.grade.toLowerCase()}">${p.grade}</div>`
-            : '<div class="score-value pending">—</div>'}
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 </script>
 {% endblock %}

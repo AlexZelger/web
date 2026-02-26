@@ -370,9 +370,69 @@ def get_best_stat(player_name: str,
     return {"year": best["year"], "value": best[stat_key]}
 
 
-# ---------------------------------------------------------------------------
-# Prompt generator
-# ---------------------------------------------------------------------------
+def get_top_stats(stat_key: str,
+                  n: int = 5,
+                  team: str | None = None,
+                  division: str | None = None,
+                  year_min: int | None = None,
+                  year_max: int | None = None,
+                  min_stat_key: str | None = None,
+                  min_stat_val: float | None = None,
+                  min_teams: int | None = None,
+                  league: str | None = None,
+                  rival_team: str | None = None) -> list[dict]:
+    """
+    Return the top N player-seasons for a stat across all players matching
+    a prompt's constraints.
+
+    Each entry: { player, year, value }
+
+    Used on the results screen to show "you could have picked…" context.
+    """
+    index     = _load_index()
+    ascending = STAT_CONFIG[stat_key]["ascending"]
+    stat_type = STAT_CONFIG[stat_key]["type"]
+
+    STAT_TYPE_TO_PLAYER_TYPE = {"batting": "batter", "pitching": "pitcher"}
+
+    candidates = []  # list of (value, player_name, year)
+
+    for name, entry in index.items():
+        # Filter by player type
+        if stat_type != "both":
+            expected = STAT_TYPE_TO_PLAYER_TYPE.get(stat_type)
+            if entry["type"] != expected:
+                continue
+
+        # Career-level filters
+        if min_teams is not None and entry.get("career_team_count", 0) < min_teams:
+            continue
+        if league is not None:
+            career_leagues = entry.get("career_leagues", [])
+            if league not in career_leagues:
+                continue
+            other = "NL" if league == "AL" else "AL"
+            if other in career_leagues:
+                continue
+        if rival_team is not None and rival_team not in entry.get("career_teams", []):
+            continue
+
+        # Season-level filters
+        seasons = _matching_seasons(name, team, division, year_min, year_max,
+                                    min_stat_key, min_stat_val)
+        for s in seasons:
+            v = s.get(stat_key)
+            if v is None:
+                continue
+            candidates.append((v, name, s["year"]))
+
+    # Sort: ascending stats (ERA) — lowest is best; others — highest is best
+    candidates.sort(key=lambda c: c[0], reverse=not ascending)
+
+    return [
+        {"player": name, "year": year, "value": value}
+        for value, name, year in candidates[:n]
+    ]
 
 # Prompt types that are valid per stat category
 # "both" stats (WAR) only get the simple positional types — career-level

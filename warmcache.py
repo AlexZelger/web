@@ -30,7 +30,7 @@ from pybaseball import cache as pybaseball_cache
 # Config
 # ---------------------------------------------------------------------------
 
-YEAR_RANGE   = (1990, 2023)
+YEAR_RANGE   = (1990, 2025)
 MIN_PA       = 200   # minimum plate appearances to qualify (batters)
 MIN_IP       = 40    # minimum innings pitched to qualify (pitchers)
 CACHE_DIR    = Path(__file__).parent / "stat_cache"

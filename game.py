@@ -24,6 +24,7 @@ from data import (
     get_valid_years,
     get_stat,
     get_best_stat,
+    get_top_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -267,19 +268,18 @@ def score_game(state: dict) -> dict:
         best_value = best["value"] if best else stat_value
         best_year  = best["year"]  if best else pick["year"]
 
-        # For ascending stats (ERA), lower is better — invert for scoring purposes
-        # We use a simple raw-value sum, but flag whether the user picked optimally
+        # For ascending stats (ERA), lower is better.
+        # Score = raw ERA value. Total score = average ERA across slots.
+        # Efficiency = best_possible / your_value (1.0 if you matched best).
         if ascending:
-            # For ERA we score as: best_value / stat_value (closer to 1 = better)
-            # Multiply by 100 to get a readable score
-            slot_score   = round((best_value / stat_value) * 100, 1) if stat_value else 0
-            slot_max     = 100.0
-            efficiency   = round(best_value / stat_value, 3) if stat_value else 0
-            points_left  = round(slot_max - slot_score, 1)
+            slot_score  = stat_value                    # raw ERA (e.g. 2.48)
+            slot_max    = best_value                    # best ERA achievable for this slot
+            efficiency  = round(best_value / stat_value, 4) if stat_value else 1.0
+            points_left = round(stat_value - best_value, 4)   # how much lower you could have gone
         else:
             slot_score  = stat_value
             slot_max    = best_value
-            efficiency  = round(stat_value / best_value, 3) if best_value else 1.0
+            efficiency  = round(stat_value / best_value, 4) if best_value else 1.0
             points_left = best_value - stat_value
 
         total_score  += slot_score
@@ -298,15 +298,26 @@ def score_game(state: dict) -> dict:
             "efficiency":  efficiency,
         })
 
-    overall_efficiency = round(total_score / max_possible, 4) if max_possible else 0
+    n_slots = len(slot_results)
+
+    # For ascending stats (ERA): total_score = average ERA (lower is better).
+    # For all others: total_score = sum of raw stat values.
+    if ascending and n_slots > 0:
+        total_score  = round(total_score / n_slots, 4)
+        max_possible = round(max_possible / n_slots, 4)   # average of best ERAs
+
+    overall_efficiency = round(max_possible / total_score, 4) \
+        if ascending and total_score else \
+        round(total_score / max_possible, 4) if max_possible else 0
 
     result = {
         "stat_key":      stat_key,
         "stat_label":    STAT_CONFIG[stat_key]["label"],
-        "total_score":   round(total_score, 4),    # full precision for sorting/ranking
-        "max_possible":  round(max_possible, 4),   # full precision for efficiency calc
-        "efficiency":    overall_efficiency,
-        "grade":         _grade(overall_efficiency),
+        "ascending":     ascending,                        # frontend uses to flip bar/label
+        "total_score":   round(total_score, 4),
+        "max_possible":  round(max_possible, 4),           # best avg ERA achievable
+        "efficiency":    min(overall_efficiency, 1.0),     # cap at 1.0
+        "grade":         _grade(min(overall_efficiency, 1.0)),
         "slots":         slot_results,
     }
 

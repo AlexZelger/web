@@ -28,7 +28,7 @@ from flask import (
     render_template, request, jsonify
 )
 import game as game_logic
-from data import get_team_logo_url
+from data import get_team_logo_url, get_top_stats
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +145,27 @@ def results():
     result = session.get("baseball_result")
     if not result:
         return redirect(url_for("game.play"))
+
+    # Compute top picks fresh here — never stored in session to avoid
+    # exceeding Flask's 4KB cookie limit.
+    import copy
+    result = copy.deepcopy(result)
+    prompts = state.get("prompts", [])
+    for i, slot in enumerate(result.get("slots", [])):
+        prompt = prompts[i] if i < len(prompts) else {}
+        slot["top_picks"] = get_top_stats(
+            result["stat_key"], n=5,
+            team=prompt.get("team"),
+            division=prompt.get("division"),
+            year_min=prompt.get("year_min"),
+            year_max=prompt.get("year_max"),
+            min_stat_key=prompt.get("min_stat_key"),
+            min_stat_val=prompt.get("min_stat_val"),
+            min_teams=prompt.get("min_teams"),
+            league=prompt.get("league"),
+            rival_team=prompt.get("rival_team"),
+        )
+
     return render_template("results.html", state=state, result=result)
 
 

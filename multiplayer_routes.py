@@ -36,6 +36,7 @@ from flask_socketio import join_room, emit
 
 import lobby_manager as lm
 from lobby_manager import LobbyError
+from data import get_top_stats
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,10 @@ mp_bp = Blueprint(
 )
 
 MP_SESSION_KEY = "mp_player"   # { lobby_id, player_id, player_name }
+
+# Module-level socketio reference set by register_socketio_events(),
+# so HTTP routes can broadcast without being inside a socket handler.
+_socketio = None
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +119,12 @@ def join(lobby_id: str):
     try:
         player_id = lm.join_lobby(lobby_id, name)
         _set_mp_session(lobby_id, player_id, name)
+
+        # Broadcast updated player list to everyone already in the room
+        if _socketio:
+            lobby = lm.get_lobby(lobby_id)
+            _socketio.emit("lobby_updated", _lobby_summary(lobby), to=lobby_id)
+
         return redirect(url_for("mp.wait", lobby_id=lobby_id))
     except LobbyError as e:
         return render_template("mp_join.html", lobby_id=lobby_id, error=str(e))
@@ -211,10 +222,32 @@ def results(lobby_id: str):
     except LobbyError:
         return redirect(url_for("mp.index"))
 
+    # Compute top picks per slot from the lobby's prompts.
+    # Done here so the heavy index scan happens once on page load,
+    # not on every socket update.
+    stat_key = lobby.get("stat_key")
+    prompts  = lobby.get("prompts", [])
+    top_picks_by_slot = []
+    if stat_key and prompts:
+        for prompt in prompts:
+            top_picks_by_slot.append(get_top_stats(
+                stat_key, n=5,
+                team=prompt.get("team"),
+                division=prompt.get("division"),
+                year_min=prompt.get("year_min"),
+                year_max=prompt.get("year_max"),
+                min_stat_key=prompt.get("min_stat_key"),
+                min_stat_val=prompt.get("min_stat_val"),
+                min_teams=prompt.get("min_teams"),
+                league=prompt.get("league"),
+                rival_team=prompt.get("rival_team"),
+            ))
+
     return render_template("mp_results.html",
                            scoreboard=scoreboard,
                            lobby=lobby,
-                           player_id=mp["player_id"])
+                           player_id=mp["player_id"],
+                           top_picks_by_slot=top_picks_by_slot)
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +259,8 @@ def register_socketio_events(socketio):
     Call this after creating your SocketIO instance:
         register_socketio_events(socketio)
     """
+    global _socketio
+    _socketio = socketio
 
     @socketio.on("join_lobby_room")
     def on_join(data):
@@ -245,8 +280,9 @@ def register_socketio_events(socketio):
 
         try:
             lobby = lm.get_lobby(lobby_id)
-            # Send current player list to the newly connected client
-            emit("lobby_updated", _lobby_summary(lobby))
+            # Broadcast updated player list to everyone in the room
+            # (including the newly connected client)
+            socketio.emit("lobby_updated", _lobby_summary(lobby), to=lobby_id)
         except LobbyError as e:
             emit("error", {"message": str(e)})
 

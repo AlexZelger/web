@@ -175,6 +175,49 @@
   }
   .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
 
+  /* ── Top picks per slot ── */
+  .slot-top-picks {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(201,147,58,0.12);
+  }
+  .slot-top-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 6px;
+  }
+  .slot-top-row {
+    display: grid; grid-template-columns: 20px 1fr 40px 48px;
+    align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 4px;
+    font-size: 11px; margin-bottom: 3px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid transparent;
+  }
+  .slot-top-row.top-you {
+    background: rgba(201,147,58,0.08);
+    border-color: rgba(201,147,58,0.25);
+  }
+  .slot-top-rank {
+    font-family: 'Bebas Neue', sans-serif; font-size: 14px;
+    color: rgba(245,236,215,0.4); text-align: center; line-height: 1;
+  }
+  .slot-top-row.top-you .slot-top-rank { color: var(--gold); }
+  .slot-top-name {
+    color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .slot-top-row.top-you .slot-top-name { color: var(--gold); }
+  .slot-top-year { color: var(--dim); font-size: 10px; }
+  .slot-top-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+    color: var(--gold); text-align: right; line-height: 1;
+  }
+  .slot-top-you-badge {
+    font-size: 7px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 1px 4px; border-radius: 999px;
+    background: rgba(201,147,58,0.15); border: 1px solid rgba(201,147,58,0.3);
+    color: var(--gold); margin-left: 4px; vertical-align: middle;
+  }
+  .slot-top-separator { height: 1px; background: rgba(201,147,58,0.1); margin: 3px 0; }
+
   /* Play Again readiness */
   .play-again-wrap { display: flex; flex-direction: column; gap: 10px; }
   .ready-count {
@@ -239,7 +282,12 @@
         <div class="rank-num {{ 'pending' if not p.rank }}">{{ p.rank if p.rank else '—' }}</div>
         <div class="player-info">
           <div class="player-name-row">
-            <div class="player-display-name">{{ p.name }}</div>
+            <div class="player-display-name">
+              {% if scoreboard.all_done %}
+                {% if p.rank == 1 %}👑 {% elif p.rank == scoreboard.players | selectattr('rank') | list | length %}💩 {% endif %}
+              {% endif %}
+              {{ p.name }}
+            </div>
             {% if p.player_id == player_id %}<span class="you-badge">You</span>{% endif %}
             {% if p.is_host %}<span class="host-badge">Host</span>{% endif %}
           </div>
@@ -294,6 +342,34 @@
     {% endfor %}
   </div>
 
+  <!-- Top picks per slot (hidden until game over) -->
+  {% if top_picks_by_slot %}
+  <div class="section-label" style="margin-top:28px;{{ '' if scoreboard.all_done else 'display:none' }}" id="top-picks-label">Top Picks · By Slot</div>
+  <div style="display:{{ 'flex' if scoreboard.all_done else 'none' }};flex-direction:column;gap:12px;margin-bottom:36px" id="top-picks-section">
+    {% for slot_tops in top_picks_by_slot %}
+    {% set prompt = lobby.prompts[loop.index0] if lobby.prompts else None %}
+    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px">
+        Slot {{ loop.index }} · {{ prompt.label if prompt else '' }}
+      </div>
+      <div>
+        <div class="slot-top-label">Best Picks</div>
+        {% for t in slot_tops %}
+        <div class="slot-top-row">
+          <div class="slot-top-rank">{{ loop.index }}</div>
+          <div class="slot-top-name">{{ t.player }}</div>
+          <div class="slot-top-year">{{ t.year }}</div>
+          <div class="slot-top-val">
+            {% if scoreboard.stat_key in ['AVG', 'ERA'] %}{{ "%.3f" | format(t.value) }}{% else %}{{ t.value }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <!-- Actions -->
   <div class="actions">
     {% if scoreboard.all_done %}
@@ -333,6 +409,11 @@
   socket.on("game_over", (data) => {
     updateScoreboard(data);
     document.getElementById("status-title").textContent = "Final Scores";
+    // Reveal top picks section now that all scores are in
+    const tps   = document.getElementById("top-picks-section");
+    const tplbl = document.getElementById("top-picks-label");
+    if (tps)   { tps.style.display   = "flex"; }
+    if (tplbl) { tplbl.style.display = "flex"; }
   });
 
   // ── Play Again ──────────────────────────────────────────────────────
@@ -450,7 +531,11 @@
             <div class="rank-num ${!p.rank ? 'pending' : ''}">${p.rank || '—'}</div>
             <div class="player-info">
               <div class="player-name-row">
-                <div class="player-display-name">${p.name}</div>
+                const finishedCount = data.players.filter(pl => pl.rank).length;
+                const emoji = data.all_done
+                  ? (p.rank === 1 ? '👑 ' : p.rank === finishedCount ? '💩 ' : '')
+                  : '';
+                <div class="player-display-name">${emoji}${p.name}</div>
                 ${p.player_id === PLAYER_ID ? '<span class="you-badge">You</span>' : ''}
                 ${p.is_host ? '<span class="host-badge">Host</span>' : ''}
               </div>

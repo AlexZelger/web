@@ -292,9 +292,14 @@ def build_scoreboard(lobby_id: str) -> dict:
             "picks":      p["picks"],   # list of slot result dicts, empty until finished
         })
 
-    # Sort: finished players by score desc, then unfinished alphabetically
+    # ERA is ascending (lower average ERA = better). All other stats are descending.
+    from data import STAT_CONFIG
+    stat_key  = lobby.get("stat_key")
+    ascending = STAT_CONFIG[stat_key]["ascending"] if stat_key and stat_key in STAT_CONFIG else False
+
+    # Sort finished players: ascending stats → lowest score first, others → highest first
     finished   = sorted([r for r in rows if r["status"] == "finished"],
-                        key=lambda r: r["score"] or 0, reverse=True)
+                        key=lambda r: r["score"] or 0, reverse=not ascending)
     unfinished = sorted([r for r in rows if r["status"] != "finished"],
                         key=lambda r: r["name"])
 

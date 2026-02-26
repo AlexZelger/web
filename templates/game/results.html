@@ -247,6 +247,60 @@
       transition: border-color 0.2s, color 0.2s;
     }
     .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Top picks leaderboard ── */
+    .top-picks-section {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(201,147,58,0.15);
+    }
+
+    .top-picks-label {
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 8px;
+    }
+
+    .top-picks-list {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    .top-pick-row {
+      display: grid; grid-template-columns: 22px 1fr 46px 52px;
+      align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 5px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid transparent;
+    }
+    .top-pick-row.is-you {
+      background: rgba(201,147,58,0.08);
+      border-color: rgba(201,147,58,0.3);
+    }
+    .top-pick-rank {
+      font-family: 'Bebas Neue', sans-serif; font-size: 15px;
+      color: var(--dim); text-align: center; line-height: 1;
+    }
+    .top-pick-row.is-you .top-pick-rank { color: var(--gold); }
+    .top-pick-name {
+      color: var(--cream); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .top-pick-row.is-you .top-pick-name { color: var(--gold); }
+    .top-pick-year { color: var(--dim); font-size: 10px; }
+    .top-pick-val {
+      font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+      color: var(--gold); text-align: right; line-height: 1;
+    }
+    .top-pick-you-badge {
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 1px 5px; border-radius: 999px;
+      background: rgba(201,147,58,0.15); border: 1px solid rgba(201,147,58,0.3);
+      color: var(--gold); margin-left: 5px; vertical-align: middle;
+    }
+    .top-pick-separator {
+      height: 1px; background: rgba(201,147,58,0.12);
+      margin: 3px 0;
+    }
   </style>
 </head>
 <body>
@@ -258,12 +312,14 @@
 
   <!-- Hero score -->
   <div class="hero">
-    <div class="hero-label">Final Score · {{ result.stat_label }}</div>
+    <div class="hero-label">
+      {% if result.ascending %}Avg ERA · Lower is Better{% else %}Final Score · {{ result.stat_label }}{% endif %}
+    </div>
     <div class="hero-score" id="hero-score">0</div>
     <div class="hero-grade grade-{{ result.grade | lower }}" id="hero-grade">{{ result.grade }}</div>
     <div class="hero-sub">
       {{ (result.efficiency * 100) | round(1) }}% efficiency
-      · max possible
+      · {% if result.ascending %}best avg ERA{% else %}max possible{% endif %}
       {% if result.stat_key in ['AVG', 'ERA'] %}
         {{ "%.3f" | format(result.max_possible) }}
       {% else %}
@@ -272,8 +328,8 @@
     </div>
     <div class="efficiency-bar">
       <div class="eff-labels">
-        <span>Your Score</span>
-        <span>Max Possible</span>
+        <span>{% if result.ascending %}Your Avg ERA{% else %}Your Score{% endif %}</span>
+        <span>{% if result.ascending %}Best Avg ERA{% else %}Max Possible{% endif %}</span>
       </div>
       <div class="eff-track">
         <div class="eff-fill" id="eff-fill"></div>
@@ -327,14 +383,70 @@
 
   // ── Build slot rows ────────────────────────────────────────────────────
   const breakdown = document.getElementById('breakdown');
-  const maxBest   = Math.max(...RESULT.slots.map(s => s.best_value || 0));
+  const ascending  = RESULT.ascending || false;
+
+  // For ERA (ascending): bar scale is inverted — smaller value = longer bar = better.
+  // Use the worst (highest) value as the scale anchor so bars are meaningful.
+  const allYours = RESULT.slots.map(s => s.stat_value || 0);
+  const allBests = RESULT.slots.map(s => s.best_value || 0);
+  const maxBest  = ascending
+    ? Math.max(...allYours, ...allBests)   // ERA: scale off worst value
+    : Math.max(...allBests);
 
   RESULT.slots.forEach((slot, i) => {
-    const yourPct = maxBest ? (slot.stat_value / maxBest * 100) : 0;
-    const bestPct = maxBest ? (slot.best_value / maxBest * 100) : 0;
+    let yourPct, bestPct;
+    if (ascending) {
+      // Lower ERA = longer bar: invert pct so best ERA fills the bar most
+      yourPct = maxBest ? ((maxBest - slot.stat_value) / maxBest * 100) : 0;
+      bestPct = maxBest ? ((maxBest - slot.best_value) / maxBest * 100) : 0;
+    } else {
+      yourPct = maxBest ? (slot.stat_value / maxBest * 100) : 0;
+      bestPct = maxBest ? (slot.best_value / maxBest * 100) : 0;
+    }
+
     const leftOnTable = slot.points_left > 0
-      ? `<div class="left-on-table">−${Number(slot.points_left).toFixed(SCORE_DECIMALS)} left on table</div>`
+      ? `<div class="left-on-table">${ascending ? '+' : '−'}${Number(slot.points_left).toFixed(SCORE_DECIMALS)} ${ascending ? 'above best' : 'left on table'}</div>`
       : '';
+
+    // Build top picks section
+    const tops = slot.top_picks || [];
+    let topPicksSection = '';
+    if (tops.length > 0) {
+      const yourRank = tops.findIndex(t => t.player === slot.player && t.year === slot.year);
+
+      const topRows = tops.map((t, idx) => {
+        const isYou = t.player === slot.player && t.year === slot.year;
+        return `
+          <div class="top-pick-row ${isYou ? 'is-you' : ''}">
+            <div class="top-pick-rank">${idx + 1}</div>
+            <div class="top-pick-name">${t.player}${isYou ? '<span class="top-pick-you-badge">You</span>' : ''}</div>
+            <div class="top-pick-year">${t.year}</div>
+            <div class="top-pick-val">${fmtVal(t.value)}</div>
+          </div>`;
+      }).join('');
+
+      // Show user's pick below the list if they didn't crack the top 5
+      const yourRow = yourRank === -1 ? `
+        <div class="top-pick-separator"></div>
+        <div class="top-pick-row is-you">
+          <div class="top-pick-rank">—</div>
+          <div class="top-pick-name">${slot.player}<span class="top-pick-you-badge">You</span></div>
+          <div class="top-pick-year">${slot.year}</div>
+          <div class="top-pick-val">${fmtVal(slot.stat_value)}</div>
+        </div>` : '';
+
+      topPicksSection = `
+        <div class="top-picks-section">
+          <div class="top-picks-label">Top Picks · This Slot</div>
+          <div class="top-picks-list">
+            ${topRows}
+            ${yourRow}
+          </div>
+        </div>`;
+    }
+
+    const toggleId = `toggle-${i}`;
+    const drawerId = `drawer-${i}`;
 
     const row = document.createElement('div');
     row.className = 'result-row';
@@ -356,6 +468,7 @@
             <div class="bar-val">${fmtVal(slot.best_value)}</div>
           </div>
         </div>
+        ${topPicksSection}
       </div>
       <div class="row-score">
         <div class="score-big">${fmtVal(slot.stat_value)}</div>

@@ -5,13 +5,15 @@
 {% block head %}
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
   :root {
     --green2: #0f2218; --cream: #f5ecd7; --gold: #c9933a;
     --dim: rgba(245,236,215,0.5); --border: rgba(201,147,58,0.3);
   }
   .mp-page {
     background: var(--green2); min-height: 100vh;
-    font-family: 'IBM Plex Mono', monospace; padding: 40px 16px;
+    font-family: 'IBM Plex Mono', monospace; padding: 24px 16px;
     position: relative;
   }
   .mp-page::before {
@@ -43,29 +45,106 @@
     font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
     color: var(--gold); margin-bottom: 10px;
   }
-  .share-link-row { display: flex; gap: 8px; }
+  .share-link-row { display: flex; gap: 8px; flex-wrap: wrap; }
   .share-link-input {
-    flex: 1; background: rgba(255,255,255,0.05);
+    flex: 1; min-width: 0; background: rgba(255,255,255,0.05);
     border: 1px solid var(--border); border-radius: 6px;
     color: var(--cream); font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px; padding: 8px 12px; outline: none;
+    font-size: 16px; /* prevents iOS zoom */ padding: 10px 12px; outline: none;
   }
   .copy-btn {
     background: rgba(201,147,58,0.15); border: 1px solid var(--border);
     border-radius: 6px; color: var(--gold); font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 8px 16px; cursor: pointer; transition: background 0.2s; white-space: nowrap;
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 18px; cursor: pointer; transition: background 0.2s; white-space: nowrap;
+    min-height: 44px; /* minimum touch target */
   }
   .copy-btn:hover { background: rgba(201,147,58,0.25); }
   .copy-btn.copied { color: #a8d8a0; border-color: rgba(168,216,160,0.4); }
   .share-btn {
     background: var(--gold); border: none;
     border-radius: 6px; color: var(--green2); font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 8px 16px; cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
-    display: none; /* shown via JS only if Web Share API is available */
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 18px; cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+    display: none; min-height: 44px;
   }
-  .share-btn:hover { opacity: 0.85; }
+  .share-btn:active { opacity: 0.75; }
+
+  /* ── Chat widget ── */
+  .chat-bubble {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--gold); border: none; cursor: pointer;
+    font-size: 22px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  .chat-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #e05555; color: #fff; font-size: 10px; font-family: 'IBM Plex Mono', monospace;
+    min-width: 18px; height: 18px; border-radius: 999px;
+    display: none; align-items: center; justify-content: center;
+    padding: 0 4px; font-weight: 600; border: 2px solid var(--green2);
+  }
+  .chat-panel {
+    position: fixed; bottom: 88px; right: 24px; z-index: 99;
+    width: 320px; max-width: calc(100vw - 48px);
+    background: var(--green2); border: 1px solid var(--border);
+    border-radius: 12px; display: none; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
+    animation: chatIn 0.2s ease both;
+  }
+  @keyframes chatIn { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:none; } }
+  .chat-panel.open { display: flex; }
+  .chat-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); flex-shrink: 0;
+  }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px; min-height: 200px; max-height: 300px;
+    display: flex; flex-direction: column; gap: 8px;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: rgba(201,147,58,0.3); border-radius: 2px; }
+  .chat-msg { display: flex; flex-direction: column; gap: 2px; }
+  .chat-msg.mine { align-items: flex-end; }
+  .chat-msg-name { font-size: 9px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+  .chat-msg-bubble {
+    display: inline-block; max-width: 85%; padding: 7px 11px;
+    border-radius: 10px; font-size: 12px; line-height: 1.4; word-break: break-word;
+    background: rgba(255,255,255,0.06); color: var(--cream);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .chat-msg.mine .chat-msg-bubble {
+    background: rgba(201,147,58,0.18); border-color: rgba(201,147,58,0.3); color: var(--cream);
+  }
+  .chat-empty {
+    font-size: 11px; color: var(--dim); text-align: center;
+    padding: 24px 0; flex: 1; display: flex; align-items: center; justify-content: center;
+  }
+  .chat-input-row {
+    display: flex; gap: 8px; padding: 10px 12px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--cream); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; padding: 8px 10px; outline: none; transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--gold); }
+  .chat-input::placeholder { color: rgba(245,236,215,0.3); }
+  .chat-send {
+    background: var(--gold); border: none; border-radius: 6px;
+    color: var(--green2); font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px 12px; cursor: pointer; flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .chat-send:hover { opacity: 0.85; }
 
   /* Player list */
   .players-card {
@@ -82,8 +161,9 @@
   .players-count { font-size: 12px; color: var(--dim); }
   .player-row {
     display: flex; align-items: center; gap: 12px;
-    padding: 14px 20px; border-bottom: 1px solid rgba(201,147,58,0.1);
+    padding: 16px 20px; border-bottom: 1px solid rgba(201,147,58,0.1);
     animation: slideIn 0.3s ease both;
+    min-height: 52px; /* comfortable touch target */
   }
   @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
   .player-row:last-child { border-bottom: none; }
@@ -129,6 +209,21 @@
     font-size: 13px; color: var(--dim); line-height: 1.6;
   }
   .guest-note strong { color: var(--cream); }
+
+  /* ── Chat widget mobile: full-width panel ── */
+  @media (max-width: 480px) {
+    .chat-panel {
+      left: 12px; right: 12px; bottom: 80px;
+      width: auto; max-width: none;
+      border-radius: 12px;
+    }
+    .chat-input { font-size: 16px; } /* prevent iOS zoom */
+    .share-link-row { flex-direction: column; }
+    .copy-btn, .share-btn { width: 100%; justify-content: center; }
+    .share-btn { display: none; } /* re-hidden; JS will show if supported */
+    .wait-header { margin-bottom: 24px; }
+    h1 { font-size: 40px; }
+  }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 {% endblock %}
@@ -189,6 +284,23 @@
     </div>
     {% endif %}
 
+  </div>
+</div>
+
+<!-- Chat widget -->
+<button class="chat-bubble" onclick="toggleChat()" title="Chat">
+  💬
+  <div class="chat-badge" id="chat-badge">0</div>
+</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">Lobby Chat</div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-empty" id="chat-empty">No messages yet. Say hi!</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" type="text" placeholder="Say something…"
+           maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button class="chat-send" onclick="sendChat()">Send</button>
   </div>
 </div>
 {% endblock %}
@@ -264,6 +376,65 @@
   // Show the native share button only on devices that support it
   if (navigator.share) {
     document.getElementById("share-btn").style.display = "inline-block";
+  }
+
+  // ── Chat ────────────────────────────────────────────────────────────────
+  const PLAYER_NAME = "{{ player_name }}";
+  let chatOpen  = false;
+  let unread    = 0;
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById("chat-panel").classList.toggle("open", chatOpen);
+    if (chatOpen) {
+      unread = 0;
+      updateBadge();
+      document.getElementById("chat-input").focus();
+      scrollChat();
+    }
+  }
+
+  function updateBadge() {
+    const badge = document.getElementById("chat-badge");
+    badge.style.display = unread > 0 ? "flex" : "none";
+    badge.textContent   = unread > 9 ? "9+" : unread;
+  }
+
+  function scrollChat() {
+    const box = document.getElementById("chat-messages");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function sendChat() {
+    const input = document.getElementById("chat-input");
+    const text  = input.value.trim();
+    if (!text) return;
+    socket.emit("chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
+    input.value = "";
+  }
+
+  socket.on("chat_message", (msg) => {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+
+    const isMe = msg.player_id === PLAYER_ID;
+    const el   = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `
+      ${!isMe ? `<div class="chat-msg-name">${msg.name}</div>` : ''}
+      <div class="chat-msg-bubble">${escapeHtml(msg.text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+
+    if (!chatOpen && !isMe) {
+      unread++;
+      updateBadge();
+    }
+  });
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+            .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   }
 </script>
 {% endblock %}

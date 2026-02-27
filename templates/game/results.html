@@ -13,6 +13,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
 
     :root {
       --green:  #1a3a2a;
@@ -58,7 +60,7 @@
     /* ── Hero score ── */
     .hero {
       text-align: center;
-      padding: 48px 24px;
+      padding: 32px 20px;
       background: rgba(255,255,255,0.02);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -224,7 +226,7 @@
 
     /* ── Action buttons ── */
     .actions {
-      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
     }
 
     .btn-primary {
@@ -233,10 +235,10 @@
       background: var(--gold); color: var(--green2);
       border: none; border-radius: 6px; cursor: pointer;
       text-decoration: none; display: inline-block;
-      transition: transform 0.15s, box-shadow 0.15s;
-      box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.3); min-height: 52px;
+      transition: opacity 0.15s;
     }
-    .btn-primary:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 rgba(0,0,0,0.3); }
+    .btn-primary:active { opacity: 0.85; }
 
     .btn-secondary {
       font-family: 'Bebas Neue', sans-serif; font-size: 22px;
@@ -244,9 +246,9 @@
       background: transparent; color: var(--cream);
       border: 1px solid var(--border); border-radius: 6px;
       cursor: pointer; text-decoration: none; display: inline-block;
-      transition: border-color 0.2s, color 0.2s;
+      transition: border-color 0.2s, color 0.2s; min-height: 52px;
     }
-    .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+    .btn-secondary:active { border-color: var(--gold); color: var(--gold); }
 
     /* ── Top picks leaderboard ── */
     .top-picks-section {
@@ -301,7 +303,33 @@
       height: 1px; background: rgba(201,147,58,0.12);
       margin: 3px 0;
     }
-  </style>
+
+    @media (max-width: 480px) {
+      body { padding: 16px 12px 60px; }
+      .logo { font-size: 22px; }
+      header { padding-bottom: 14px; margin-bottom: 20px; }
+      .hero { padding: 24px 16px; margin-bottom: 20px; }
+      .hero-score { font-size: clamp(60px, 18vw, 90px); }
+      /* Stack result row: score moves below bars */
+      .result-row {
+        grid-template-columns: 24px 1fr;
+        grid-template-rows: auto auto;
+      }
+      .row-score {
+        grid-column: 2; text-align: left;
+        display: flex; align-items: baseline; gap: 8px;
+        margin-top: 4px;
+      }
+      .score-big { font-size: 28px; }
+      /* Full-width buttons */
+      .actions { flex-direction: column; }
+      .btn-primary, .btn-secondary { width: 100%; text-align: center; padding: 14px; }
+      /* Top picks grid tighter on mobile */
+      .top-pick-row {
+        grid-template-columns: 20px 1fr 36px 44px;
+        gap: 6px; padding: 7px 8px;
+      }
+    }
 </head>
 <body>
 <div class="page">

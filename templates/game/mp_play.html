@@ -5,6 +5,8 @@
 {% block head %}
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
   :root {
     --green: #1a3a2a; --green2: #0f2218; --cream: #f5ecd7;
     --gold: #c9933a; --dim: rgba(245,236,215,0.5); --border: rgba(201,147,58,0.3);
@@ -102,7 +104,7 @@
   .search-input {
     width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(201,147,58,0.3);
     border-radius: 6px; color: var(--cream); font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px; padding: 10px 14px; outline: none; transition: border-color 0.2s;
+    font-size: 16px; /* prevents iOS zoom-on-focus */ padding: 12px 14px; outline: none; transition: border-color 0.2s;
   }
   .search-input:focus { border-color: var(--gold); }
   .search-input::placeholder { color: rgba(245,236,215,0.3); }
@@ -113,9 +115,10 @@
   }
   .autocomplete-dropdown.open { display: block; }
   .ac-item {
-    padding: 10px 14px; cursor: pointer; font-size: 13px;
+    padding: 13px 14px; cursor: pointer; font-size: 14px;
     border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.15s;
     display: flex; justify-content: space-between; align-items: center;
+    min-height: 48px; /* comfortable tap target */
   }
   .ac-item:last-child { border-bottom: none; }
   .ac-item:hover, .ac-item.active { background: rgba(201,147,58,0.15); }
@@ -124,19 +127,19 @@
   .year-select {
     background: rgba(255,255,255,0.05); border: 1px solid rgba(201,147,58,0.3);
     border-radius: 6px; color: var(--cream); font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px; padding: 10px 14px; outline: none; width: 100%;
-    display: none; cursor: pointer; transition: border-color 0.2s;
+    font-size: 16px; /* prevents iOS zoom */ padding: 12px 14px; outline: none; width: 100%;
+    display: none; cursor: pointer; transition: border-color 0.2s; min-height: 44px;
   }
   .year-select:focus { border-color: var(--gold); }
   .year-select option { background: #162d1f; }
   .confirm-btn {
     background: var(--gold); color: var(--green2);
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.08em;
-    padding: 10px 28px; border: none; border-radius: 6px; cursor: pointer;
-    display: none; transition: opacity 0.2s, transform 0.15s; align-self: flex-start;
+    padding: 12px 28px; border: none; border-radius: 6px; cursor: pointer;
+    display: none; transition: opacity 0.2s; align-self: stretch;
+    min-height: 44px;
   }
-  .confirm-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-  .confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .confirm-btn:active { opacity: 0.8; }
   .slot-error { font-size: 11px; color: #e07070; display: none; margin-top: 4px; }
   .slot-logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
   .slot-logo-placeholder { width:36px;height:36px;border-radius:50%;background:rgba(201,147,58,0.15);border:1px solid rgba(201,147,58,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0; }
@@ -144,23 +147,62 @@
   .pick-headshot-wrap { position:relative;flex-shrink:0; }
   .pick-headshot-wrap .team-badge { position:absolute;bottom:-2px;right:-2px;width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6)); }
   .submit-bar {
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
-    gap: 16px; padding: 20px 24px; background: rgba(255,255,255,0.03);
-    border: 1px solid var(--border); border-radius: 8px;
+    display: flex; flex-direction: column; gap: 12px; padding: 20px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px;
   }
-  .submit-hint { font-size: 12px; color: var(--dim); letter-spacing: 0.04em; }
+  .submit-hint { font-size: 13px; color: var(--dim); letter-spacing: 0.04em; text-align: center; }
   .submit-btn {
-    background: var(--gold); color: var(--green2); font-family: 'Bebas Neue', sans-serif;
-    font-size: 24px; letter-spacing: 0.1em; padding: 12px 48px; border: none;
-    border-radius: 6px; cursor: pointer; transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
-    box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    width: 100%; background: var(--gold); color: var(--green2); font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px; letter-spacing: 0.1em; padding: 14px; border: none;
+    border-radius: 6px; cursor: pointer; transition: opacity 0.2s;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3); min-height: 52px;
   }
-  .submit-btn:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 rgba(0,0,0,0.3); }
-  .submit-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+  .submit-btn:active:not(:disabled) { opacity: 0.85; }
+  .submit-btn:disabled { opacity: 0.3; cursor: not-allowed; box-shadow: none; }
   .spinner { display:inline-block;width:14px;height:14px;border:2px solid rgba(245,236,215,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.6s linear infinite;vertical-align:middle;margin-left:8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner.hidden { display: none; }
   ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(201,147,58,0.3);border-radius:3px}
+
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 80px; }
+    .logo { font-size: 22px; }
+    .round-stat .value { font-size: 24px; }
+    header { gap: 8px; padding-bottom: 14px; margin-bottom: 20px; }
+    .mp-status-bar { padding: 10px 14px; }
+    .score-bar { padding: 10px 14px; gap: 10px; }
+    .score-total { font-size: 22px; min-width: 60px; }
+    .slot-header { padding: 10px 12px; gap: 8px; }
+    .slot-body { padding: 12px; }
+    .pick-stat .stat-val { font-size: 34px; }
+    .pick-name { font-size: 22px; }
+    .autocomplete-dropdown { max-height: 50vh; }
+    .chat-input { font-size: 16px; }
+    .chat-panel { left: 12px; right: 12px; bottom: 80px; width: auto; max-width: none; border-radius: 12px; }
+    /* Disable hover-transforms on touch — use :active instead */
+    .slot-card:hover { border-color: var(--border); }
+  }
+
+  /* ── Chat widget ── */
+  .chat-bubble{position:fixed;bottom:24px;right:24px;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,box-shadow 0.2s;}
+  .chat-bubble:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,0.5);}
+  .chat-badge{position:absolute;top:-4px;right:-4px;background:#e05555;color:#fff;font-size:10px;font-family:'IBM Plex Mono',monospace;min-width:18px;height:18px;border-radius:999px;display:none;align-items:center;justify-content:center;padding:0 4px;font-weight:600;border:2px solid var(--green2);}
+  .chat-panel{position:fixed;bottom:88px;right:24px;z-index:99;width:320px;max-width:calc(100vw - 48px);background:var(--green2);border:1px solid var(--border);border-radius:12px;display:none;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;animation:chatIn 0.2s ease both;}
+  @keyframes chatIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:none}}
+  .chat-panel.open{display:flex;}
+  .chat-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);flex-shrink:0;}
+  .chat-messages{flex:1;overflow-y:auto;padding:12px;min-height:200px;max-height:300px;display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;}
+  .chat-messages::-webkit-scrollbar{width:4px} .chat-messages::-webkit-scrollbar-thumb{background:rgba(201,147,58,0.3);border-radius:2px;}
+  .chat-msg{display:flex;flex-direction:column;gap:2px;} .chat-msg.mine{align-items:flex-end;}
+  .chat-msg-name{font-size:9px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;}
+  .chat-msg-bubble{display:inline-block;max-width:85%;padding:7px 11px;border-radius:10px;font-size:12px;line-height:1.4;word-break:break-word;background:rgba(255,255,255,0.06);color:var(--cream);border:1px solid rgba(255,255,255,0.06);}
+  .chat-msg.mine .chat-msg-bubble{background:rgba(201,147,58,0.18);border-color:rgba(201,147,58,0.3);}
+  .chat-empty{font-size:11px;color:var(--dim);text-align:center;padding:24px 0;flex:1;display:flex;align-items:center;justify-content:center;}
+  .chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0;}
+  .chat-input{flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--cream);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 10px;outline:none;transition:border-color 0.2s;}
+  .chat-input:focus{border-color:var(--gold);} .chat-input::placeholder{color:rgba(245,236,215,0.3);}
+  .chat-send{background:var(--gold);border:none;border-radius:6px;color:var(--green2);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:8px 12px;cursor:pointer;flex-shrink:0;transition:opacity 0.15s;}
+  .chat-send:hover{opacity:0.85;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
 {% endblock %}
@@ -205,6 +247,23 @@
     <button class="submit-btn" id="submit-btn" disabled>
       Submit Picks <span class="spinner hidden" id="submit-spinner"></span>
     </button>
+  </div>
+</div>
+
+<!-- Chat widget -->
+<button class="chat-bubble" onclick="toggleChat()" title="Chat">
+  💬
+  <div class="chat-badge" id="chat-badge">0</div>
+</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">Lobby Chat</div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-empty" id="chat-empty">No messages yet. Say hi!</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" type="text" placeholder="Say something…"
+           maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button class="chat-send" onclick="sendChat()">Send</button>
   </div>
 </div>
 {% endblock %}
@@ -434,5 +493,44 @@
       btn.disabled=false; spinner.classList.add('hidden');
     }
   });
+
+  // ── Chat ────────────────────────────────────────────────────────────────
+  let chatOpen = false, unread = 0;
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById("chat-panel").classList.toggle("open", chatOpen);
+    if (chatOpen) { unread = 0; updateBadge(); document.getElementById("chat-input").focus(); scrollChat(); }
+  }
+  function updateBadge() {
+    const b = document.getElementById("chat-badge");
+    b.style.display = unread > 0 ? "flex" : "none";
+    b.textContent   = unread > 9 ? "9+" : unread;
+  }
+  function scrollChat() {
+    const box = document.getElementById("chat-messages");
+    box.scrollTop = box.scrollHeight;
+  }
+  function sendChat() {
+    const input = document.getElementById("chat-input");
+    const text  = input.value.trim();
+    if (!text) return;
+    socket.emit("chat_message", { lobby_id: MP.lobby_id, player_id: MP.player_id, text });
+    input.value = "";
+  }
+  socket.on("chat_message", (msg) => {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+    const isMe = msg.player_id === MP.player_id;
+    const el   = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escHtml(msg.name)}</div>` : ''}<div class="chat-msg-bubble">${escHtml(msg.text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+    if (!chatOpen && !isMe) { unread++; updateBadge(); }
+  });
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
 </script>
 {% endblock %}

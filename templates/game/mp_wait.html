@@ -124,7 +124,7 @@
   }
   .chat-empty {
     font-size: 11px; color: var(--dim); text-align: center;
-    padding: 24px 0; flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 40px 16px;
   }
   .chat-input-row {
     display: flex; gap: 8px; padding: 10px 12px;
@@ -380,61 +380,56 @@
 
   // ── Chat ────────────────────────────────────────────────────────────────
   const PLAYER_NAME = "{{ player_name }}";
-  let chatOpen  = false;
-  let unread    = 0;
+  let chatOpen = false, unread = 0;
 
   function toggleChat() {
     chatOpen = !chatOpen;
     document.getElementById("chat-panel").classList.toggle("open", chatOpen);
-    if (chatOpen) {
-      unread = 0;
-      updateBadge();
-      document.getElementById("chat-input").focus();
-      scrollChat();
-    }
+    if (chatOpen) { unread = 0; updateBadge(); document.getElementById("chat-input").focus(); scrollChat(); }
   }
-
   function updateBadge() {
-    const badge = document.getElementById("chat-badge");
-    badge.style.display = unread > 0 ? "flex" : "none";
-    badge.textContent   = unread > 9 ? "9+" : unread;
+    const b = document.getElementById("chat-badge");
+    b.style.display = unread > 0 ? "flex" : "none";
+    b.textContent   = unread > 9 ? "9+" : unread;
   }
-
   function scrollChat() {
     const box = document.getElementById("chat-messages");
     box.scrollTop = box.scrollHeight;
   }
-
+  function appendChatMsg(playerId, name, text, isMe) {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+    const el = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escapeHtml(name)}</div>` : ''}<div class="chat-msg-bubble">${escapeHtml(text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  }
   function sendChat() {
     const input = document.getElementById("chat-input");
     const text  = input.value.trim();
     if (!text) return;
+    console.log("[Chat] Emitting chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
     socket.emit("chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
     input.value = "";
+    appendChatMsg(PLAYER_ID, "You", text, true);
   }
-
   socket.on("chat_message", (msg) => {
-    const empty = document.getElementById("chat-empty");
-    if (empty) empty.remove();
-
-    const isMe = msg.player_id === PLAYER_ID;
-    const el   = document.createElement("div");
-    el.className = "chat-msg" + (isMe ? " mine" : "");
-    el.innerHTML = `
-      ${!isMe ? `<div class="chat-msg-name">${msg.name}</div>` : ''}
-      <div class="chat-msg-bubble">${escapeHtml(msg.text)}</div>`;
+    console.log("[Chat] Received chat_message from server:", msg);
+    if (msg.player_id === PLAYER_ID) return; // skip own — shown by local echo
+    appendChatMsg(msg.player_id, msg.name, msg.text, false);
+    if (!chatOpen) { unread++; updateBadge(); }
+  });
+  socket.on("chat_error", (data) => {
+    console.error("[Chat] Server returned error:", data.message);
+    const el = document.createElement("div");
+    el.style.cssText = "font-size:11px;color:#e07070;padding:6px 12px;font-style:italic;";
+    el.textContent = "⚠ " + data.message;
     document.getElementById("chat-messages").appendChild(el);
     scrollChat();
-
-    if (!chatOpen && !isMe) {
-      unread++;
-      updateBadge();
-    }
   });
-
   function escapeHtml(s) {
-    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-            .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   }
 </script>
 {% endblock %}

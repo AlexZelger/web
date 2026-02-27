@@ -266,7 +266,7 @@
   .chat-msg-name{font-size:9px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;}
   .chat-msg-bubble{display:inline-block;max-width:85%;padding:7px 11px;border-radius:10px;font-size:12px;line-height:1.4;word-break:break-word;background:rgba(255,255,255,0.06);color:var(--cream);border:1px solid rgba(255,255,255,0.06);}
   .chat-msg.mine .chat-msg-bubble{background:rgba(201,147,58,0.18);border-color:rgba(201,147,58,0.3);}
-  .chat-empty{font-size:11px;color:var(--dim);text-align:center;padding:24px 0;flex:1;display:flex;align-items:center;justify-content:center;}
+  .chat-empty{font-size:11px;color:var(--dim);text-align:center;padding:40px 16px;}
   .chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0;}
   .chat-input{flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--cream);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 10px;outline:none;transition:border-color 0.2s;}
   .chat-input:focus{border-color:var(--gold);} .chat-input::placeholder{color:rgba(245,236,215,0.3);}
@@ -626,23 +626,37 @@
     const box = document.getElementById("chat-messages");
     box.scrollTop = box.scrollHeight;
   }
+  function appendChatMsg(playerId, name, text, isMe) {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+    const el = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escHtml(name)}</div>` : ''}<div class="chat-msg-bubble">${escHtml(text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  }
   function sendChat() {
     const input = document.getElementById("chat-input");
     const text  = input.value.trim();
     if (!text) return;
+    console.log("[Chat] Emitting chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
     socket.emit("chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
     input.value = "";
+    appendChatMsg(PLAYER_ID, "You", text, true);
   }
   socket.on("chat_message", (msg) => {
-    const empty = document.getElementById("chat-empty");
-    if (empty) empty.remove();
-    const isMe = msg.player_id === PLAYER_ID;
-    const el   = document.createElement("div");
-    el.className = "chat-msg" + (isMe ? " mine" : "");
-    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escHtml(msg.name)}</div>` : ''}<div class="chat-msg-bubble">${escHtml(msg.text)}</div>`;
+    console.log("[Chat] Received chat_message from server:", msg);
+    if (msg.player_id === PLAYER_ID) return; // skip own — shown by local echo
+    appendChatMsg(msg.player_id, msg.name, msg.text, false);
+    if (!chatOpen) { unread++; updateBadge(); }
+  });
+  socket.on("chat_error", (data) => {
+    console.error("[Chat] Server returned error:", data.message);
+    const el = document.createElement("div");
+    el.style.cssText = "font-size:11px;color:#e07070;padding:6px 12px;font-style:italic;";
+    el.textContent = "⚠ " + data.message;
     document.getElementById("chat-messages").appendChild(el);
     scrollChat();
-    if (!chatOpen && !isMe) { unread++; updateBadge(); }
   });
   function escHtml(s) {
     return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");

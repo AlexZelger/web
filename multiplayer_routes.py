@@ -156,6 +156,7 @@ def wait(lobby_id: str):
     return render_template("mp_wait.html",
                            lobby=lobby,
                            player_id=mp["player_id"],
+                           player_name=mp["name"],
                            is_host=lm.is_host(lobby_id, mp["player_id"]))
 
 
@@ -393,9 +394,49 @@ def register_socketio_events(socketio):
             emit("error", {"message": str(e)})
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+    @socketio.on("chat_message")
+    def on_chat_message(data):
+        """
+        A player sends a chat message. Broadcasts it to everyone in the room.
+        The server attaches the sender's display name from the lobby so clients
+        can't spoof other players' names.
+        """
+        lobby_id  = data.get("lobby_id")
+        player_id = data.get("player_id")
+        text      = (data.get("text") or "").strip()
+
+        logger.debug("chat_message received: lobby=%s player=%s text=%r",
+                     lobby_id, player_id, text)
+
+        if not text or not lobby_id or not player_id:
+            logger.warning("chat_message missing fields: %s", data)
+            emit("chat_error", {"message": "Missing lobby_id, player_id, or text."})
+            return
+
+        # Truncate to prevent abuse
+        text = text[:200]
+
+        try:
+            lobby  = lm.get_lobby(lobby_id)
+            player = lobby["players"].get(player_id)
+            name   = player["name"] if player else "Unknown"
+
+            logger.debug("chat_message broadcasting: name=%s to room=%s", name, lobby_id)
+
+            socketio.emit("chat_message", {
+                "player_id": player_id,
+                "name":      name,
+                "text":      text,
+            }, to=lobby_id)
+
+        except LobbyError as e:
+            logger.warning("chat_message LobbyError: %s", e)
+            emit("chat_error", {"message": f"Lobby error: {e}"})
+        except Exception as e:
+            logger.exception("chat_message unexpected error: %s", e)
+            emit("chat_error", {"message": f"Server error: {e}"})
+
+
 
 def _lobby_summary(lobby: dict) -> dict:
     """Trim lobby dict to what the waiting room needs."""

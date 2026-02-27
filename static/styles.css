@@ -1,21 +1,20 @@
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+
 :root{
-  --paper: #f4efe2;      /* light paper */
+  --paper: #f4efe2;
   --ink: #1a1a1a;
   --slate-300: #cbd5e1;
   --slate-700: #334155;
   --blue: #0ea5e9;
-
-  /* panel (scoreboard/panels/canvas card) */
   --panel: #0f3a26;
   --panel-border: #103f2a;
   --panel-text: #e7ffe1;
 }
 
-/* Dark mode variables */
 .theme-dark{
-  --paper: #0c1810;      /* dark green background */
-  --ink: #e7ffe1;        /* lighter text for headers on dark bg */
+  --paper: #0c1810;
+  --ink: #e7ffe1;
 }
 
 html, body { height: 100%; }
@@ -24,51 +23,78 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
 }
 
-.app { max-width: 1150px; margin: 0 auto; padding: 24px; }
-.retro-header h1 { margin: 0 0 4px; font-size: 28px; }
-.retro-header .sub { margin: 0 0 16px; color: var(--slate-700); }
+.app { max-width: 1150px; margin: 0 auto; padding: 16px; }
 
-/* Top-right theme toggle button */
+.retro-header h1 { margin: 0 0 4px; font-size: clamp(14px, 4vw, 28px); }
+.retro-header .sub { margin: 0 0 16px; color: var(--slate-700); font-size: clamp(11px, 3vw, 14px); }
+
+/* Theme toggle */
 .theme-toggle{
   position: fixed; top: 12px; right: 12px;
-  width: 42px; height: 42px;
-  border-radius: 50%;
+  width: 42px; height: 42px; border-radius: 50%;
   border: 3px solid var(--panel-border);
   background: repeating-linear-gradient(0deg, var(--panel), var(--panel) 6px, #0d3422 6px, #0d3422 7px);
   color: var(--panel-text);
   display: grid; place-items: center;
-  cursor: pointer;
-  box-shadow: 0 6px 16px rgba(2,6,23,0.25);
-  z-index: 10;
+  cursor: pointer; box-shadow: 0 6px 16px rgba(2,6,23,0.25); z-index: 200;
 }
 .theme-toggle:hover{ filter: brightness(1.05); }
 
-/* Layout */
+/* Main layout — canvas left, sidebar right */
 main {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: 1fr 300px;
   gap: 16px;
 }
 
 /* Buttons */
-.btn-primary { border: none; background: var(--blue); color: white; padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 700; }
+.btn-primary {
+  border: none; background: var(--blue); color: white;
+  padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 700;
+  min-height: 40px; font-size: clamp(11px, 3vw, 14px);
+}
 .btn-primary:hover { filter: brightness(0.95); }
-.btn-secondary { border: 1px solid var(--slate-300); background: white; color: var(--ink); padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 600; }
+.btn-secondary {
+  border: 1px solid var(--slate-300); background: white; color: var(--ink);
+  padding: 10px 14px; border-radius: 12px; cursor: pointer; font-weight: 600;
+  min-height: 40px; font-size: clamp(11px, 3vw, 14px);
+}
 .btn-secondary:hover { background: #f8fafc; }
 
-/* Canvas – keep simple gray background */
+/*
+  Canvas wrapper — aspect-ratio box trick.
+  The canvas has a 900x300 internal coordinate space used by baseball.js.
+  We cannot change the JS, so we let CSS scale the canvas to fill its container
+  while preserving the 1:3 height:width ratio.
+*/
+.canvas-scale-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 900 / 300;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
 canvas {
-  width: 100%; height: auto; border-radius: 12px; border: 2px solid var(--slate-300);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 12px;
+  border: 2px solid var(--slate-300);
   background: linear-gradient(#245c1d, #163312);
   image-rendering: pixelated;
 }
 
 /* Legend */
-.legend { margin-top: 8px; font-size: 13px; color: var(--panel-text); display: flex; align-items: center; }
-.legend .dot { width:10px; height:10px; border-radius:50%; background: var(--blue); margin-right:6px; display:inline-block; }
-.legend .fence { width:24px; height:3px; background: var(--panel-text); margin:0 4px; display:inline-block; }
+.legend {
+  margin-top: 8px; font-size: clamp(10px, 2.5vw, 13px);
+  color: var(--panel-text); display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+}
+.legend .dot { width:10px; height:10px; border-radius:50%; background: var(--blue); margin-right:4px; display:inline-block; flex-shrink: 0; }
+.legend .fence { width:20px; height:3px; background: var(--panel-text); margin:0 4px; display:inline-block; flex-shrink: 0; }
 
-/* ===== Scoreboard & Panels (including canvas card) ===== */
+/* Scoreboard & Panels */
 .scoreboard,
 .panel {
   font-family: "Press Start 2P", monospace;
@@ -78,16 +104,16 @@ canvas {
   );
   border: 6px solid var(--panel-border);
   border-radius: 14px;
-  padding: 14px 16px;
+  padding: 14px 12px;
   text-shadow: 0 0 6px rgba(0,0,0,0.4);
 }
 
-/* Canvas card tweaks */
 .canvas-card .canvas-header {
-  display: flex; justify-content: flex-end; margin-bottom: 8px;
+  display: flex; justify-content: flex-end;
+  margin-bottom: 8px; gap: 8px; flex-wrap: wrap;
 }
 
-/* Bulb-style yellow lettering */
+/* Bulb lettering */
 .bulb {
   color: transparent;
   background:
@@ -95,33 +121,34 @@ canvas {
     radial-gradient(circle at 3px 3px, #d9a83b 46%, transparent 47%) 5px 5px / 10px 10px;
   -webkit-background-clip: text;
   background-clip: text;
-  text-shadow: 0 0 6px rgba(255, 216, 64, 0.45), 0 0 12px rgba(255, 216, 64, 0.25);
+  text-shadow: 0 0 6px rgba(255,216,64,0.45), 0 0 12px rgba(255,216,64,0.25);
 }
 
-/* Scoreboard specifics */
+/* Scoreboard */
 .scoreboard { margin-bottom: 16px; }
-.sb-title { text-align: center; letter-spacing: 2px; font-size: 20px; margin-bottom: 10px; }
+.sb-title { text-align: center; letter-spacing: 2px; font-size: clamp(12px, 3.5vw, 20px); margin-bottom: 10px; }
 .sb-grid {
   display: grid;
   grid-template-columns: repeat(4, max-content);
   grid-auto-rows: 28px;
-  gap: 10px 18px;
+  gap: 10px 14px;
   align-items: center;
   justify-content: center;
 }
-.sb-cell { opacity: 0.9; }
+.sb-cell { opacity: 0.9; font-size: clamp(7px, 2vw, 10px); }
 .sb-val {
-  min-width: 160px; text-align: left; background: rgba(0,0,0,0.35);
-  padding: 6px 10px; border-radius: 6px; display: inline-block;
+  min-width: 120px; text-align: left; background: rgba(0,0,0,0.35);
+  padding: 6px 8px; border-radius: 6px; display: inline-block;
+  font-size: clamp(7px, 2vw, 10px);
 }
-.sb-footer { margin-top: 10px; text-align: center; opacity: 0.9; }
+.sb-footer { margin-top: 10px; text-align: center; opacity: 0.9; font-size: clamp(7px, 2vw, 10px); }
 
-/* Sidebar panels */
+/* Sidebar */
 .sidebar { display: grid; gap: 16px; background: none; box-shadow: none; padding: 0; }
-.panel .panel-title { text-align: center; font-size: 14px; margin-bottom: 10px; }
+.panel .panel-title { text-align: center; font-size: clamp(10px, 2.5vw, 14px); margin-bottom: 10px; }
 
-/* Leaderboard list inside panel */
-.board { margin: 0; padding-left: 0; list-style: none; font-size: 9px; }
+/* Leaderboard */
+.board { margin: 0; padding-left: 0; list-style: none; font-size: clamp(7px, 1.8vw, 9px); }
 .board li {
   margin: 6px 0; padding: 8px 10px; border-radius: 6px;
   background: rgba(0,0,0,0.25);
@@ -129,109 +156,99 @@ canvas {
 }
 .board .dist { font-weight: 700; }
 
-/* Now Hitting boxes with bulb spans inside */
 .current, .status {
-  text-align: center;
-  padding: 10px;
-  background: rgba(0,0,0,0.25);
-  border-radius: 6px;
-  margin: 6px 0;
+  text-align: center; padding: 10px;
+  background: rgba(0,0,0,0.25); border-radius: 6px; margin: 6px 0;
+  font-size: clamp(8px, 2vw, 11px);
 }
 .current .bulb, .status .bulb { display: inline-block; }
 
-/* Ensure the overlay can scroll and the card can position children */
+/* Overlay */
 .overlay {
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
   background: rgba(15,23,42,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  overflow: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; overflow: auto; z-index: 100;
 }
 .overlay.hidden { display: none; }
 
-/* Card: light mode default (white) */
 .overlay-card {
-  position: relative;
-  background: #fff;                /* light mode */
-  color: var(--ink);
-  border-radius: 16px;
-  padding: 20px;
-  width: min(92vw, 800px);
-  max-width: 100%;
-  max-height: min(92vh, 820px);
-  overflow: auto;
-  display: grid;
-  gap: 12px;
-  align-content: start;
+  position: relative; background: #fff; color: var(--ink);
+  border-radius: 16px; padding: 20px;
+  width: min(92vw, 800px); max-width: 100%;
+  max-height: min(92vh, 820px); overflow: auto;
+  display: grid; gap: 12px; align-content: start;
 }
 
-/* Inputs fill width nicely */
 .overlay-card .nameInput,
-.overlay-card select { width: 100%; }
+.overlay-card select { width: 100%; font-size: 16px; }
 
-/* Row layout */
 .grid-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 12px;
-  align-items: center;
+  display: grid; grid-template-columns: 1fr 2fr;
+  gap: 12px; align-items: center;
 }
 
-/* Names grid */
 .names { display: grid; gap: 12px; }
-.names-head { display: flex; align-items: center; justify-content: space-between; }
+.names-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .names-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 10px;
 }
 
-/* Small screens */
-@media (max-width: 540px) {
-  .overlay { align-items: flex-start; }
-  .overlay-card { width: 100%; }
-  .grid-row { grid-template-columns: 1fr; }
+/* ── Mobile responsive ── */
+
+/* Tablet: stack sidebar below canvas, sidebar goes 2-col */
+@media (max-width: 700px) {
+  main { grid-template-columns: 1fr; }
+  .sidebar { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .app { padding: 12px; }
+
+  /* Scoreboard: collapse to 2-col label+value pairs */
+  .sb-grid {
+    grid-template-columns: max-content 1fr;
+    grid-auto-rows: auto;
+    gap: 8px 12px;
+  }
+  .sb-val { min-width: 0; width: 100%; }
+
+  /* Push theme toggle below the nav hamburger from base.html (~56px tall) */
+  .theme-toggle { top: 64px; }
 }
 
-/* ---------- DARK MODE: overlay adopts dark green scoreboard look ---------- */
+/* Phone: full single column */
+@media (max-width: 440px) {
+  .sidebar { grid-template-columns: 1fr; }
+  .overlay { align-items: flex-start; padding: 8px; }
+  .overlay-card { width: 100%; border-radius: 12px; }
+  .grid-row { grid-template-columns: 1fr; }
+  .names-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Dark mode */
 .theme-dark .overlay-card {
   color: var(--panel-text);
-  /* match scoreboard panels */
   background: repeating-linear-gradient(
     0deg, var(--panel), var(--panel) 6px, #0d3422 6px, #0d3422 7px
   );
   border: 6px solid var(--panel-border);
 }
-
-/* Tweak form controls for readability on dark card */
 .theme-dark .overlay-card .nameInput,
 .theme-dark .overlay-card select {
   background: rgba(0,0,0,0.25);
   border: 1px solid rgba(231,255,225,0.35);
   color: var(--panel-text);
 }
-
-.theme-dark .overlay-card ::placeholder {
-  color: rgba(231,255,225,0.7);
-}
-
-/* Make the “Randomize names” button blend better on dark */
+.theme-dark .overlay-card ::placeholder { color: rgba(231,255,225,0.7); }
 .theme-dark .overlay-card .btn-secondary {
   background: rgba(0,0,0,0.25);
   border-color: rgba(231,255,225,0.35);
   color: var(--panel-text);
 }
-.theme-dark .overlay-card .btn-secondary:hover {
-  background: rgba(0,0,0,0.35);
-}
+.theme-dark .overlay-card .btn-secondary:hover { background: rgba(0,0,0,0.35); }
 .theme-dark .btn-secondary {
-  background: rgb(12, 24, 16);
+  background: rgb(12,24,16);
   border-color: rgba(231,255,225,0.35);
   color: var(--panel-text);
 }
-.theme-dark .btn-secondary:hover {
-  background: rgba(0,0,0,0.35);
-}
+.theme-dark .btn-secondary:hover { background: rgba(0,0,0,0.35); }

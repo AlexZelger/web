@@ -1,0 +1,665 @@
+<!-- templates/nfl/mp_results.html -->
+{% extends "base.html" %}
+{% block title %}Scoreboard — NFL Draft Game{% endblock %}
+
+{% block head %}
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --green2: #001a35; --cream: #f5f5f5; --gold: #d50a0a;
+    --dim: rgba(245,245,245,0.5); --border: rgba(213,10,10,0.3);
+  }
+  body {
+    background: var(--green2); color: var(--cream);
+    font-family: 'IBM Plex Mono', monospace; min-height: 100vh; padding: 24px 16px 80px;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px),
+      repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  .page { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 32px;
+  }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.06em; color: var(--cream); text-decoration: none; }
+
+  /* Status banner */
+  .status-banner {
+    text-align: center; padding: 32px 24px 28px; margin-bottom: 28px;
+    background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .status-eyebrow { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+  .status-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 0.04em; color: var(--cream); line-height: 1; }
+  .status-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+  .progress-row { display: flex; align-items: center; gap: 10px; justify-content: center; margin-top: 16px; }
+  .progress-label { font-size: 11px; color: var(--dim); }
+  .progress-track { width: 160px; height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width 0.6s ease; }
+  .dot-pulse { display: flex; gap: 4px; align-items: center; }
+  .dot-pulse span { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+  .dot-pulse span:nth-child(2){animation-delay:0.2s} .dot-pulse span:nth-child(3){animation-delay:0.4s}
+  @keyframes pulse{0%,80%,100%{opacity:0.3}40%{opacity:1}}
+
+  /* Scoreboard table */
+  .section-label {
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 14px; display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+  .scoreboard { display: flex; flex-direction: column; gap: 10px; margin-bottom: 36px; }
+
+  /* Wrap each row + its drawer in a card */
+  .score-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    animation: slideIn 0.4s ease both;
+    transition: border-color 0.3s;
+  }
+  .score-card.me         { border-color: rgba(213,10,10,0.5); }
+  .score-card.first-place{ border-color: rgba(213,10,10,0.8); background: rgba(213,10,10,0.06); }
+  .score-card.expandable { cursor: pointer; }
+  .score-card.expandable .score-row:hover { background: rgba(255,255,255,0.02); }
+  @keyframes slideIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  .score-card:nth-child(1){animation-delay:0.05s} .score-card:nth-child(2){animation-delay:0.10s}
+  .score-card:nth-child(3){animation-delay:0.15s} .score-card:nth-child(4){animation-delay:0.20s}
+  .score-card:nth-child(5){animation-delay:0.25s}
+
+  .score-row {
+    display: grid; grid-template-columns: 40px 1fr auto 24px;
+    align-items: center; gap: 12px; padding: 16px 20px;
+    transition: background 0.15s; min-height: 60px; /* comfortable touch target */
+  }
+
+  .expand-chevron {
+    color: var(--dim); font-size: 12px; transition: transform 0.25s ease;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .score-card.open .expand-chevron { transform: rotate(180deg); }
+  .score-card.no-picks .expand-chevron { opacity: 0; pointer-events: none; }
+
+  /* Picks drawer */
+  .picks-drawer {
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+    border-top: 0px solid var(--border);
+  }
+  .score-card.open .picks-drawer {
+    max-height: 600px;
+    border-top-width: 1px;
+  }
+  .picks-inner { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .pick-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center; gap: 10px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(213,10,10,0.12);
+    border-radius: 6px; padding: 10px 14px;
+    animation: fadeIn 0.2s ease both;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+
+  .pick-slot-num {
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+    color: rgba(213,10,10,0.5); text-align: center; line-height: 1;
+  }
+  .pick-detail { min-width: 0; }
+  .pick-player-name {
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+    color: var(--cream); letter-spacing: 0.03em; line-height: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pick-prompt {
+    font-size: 10px; color: var(--dim); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pick-stat-col { text-align: right; flex-shrink: 0; }
+  .pick-stat-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    color: var(--gold); line-height: 1;
+  }
+  .pick-stat-year { font-size: 10px; color: var(--dim); }
+  .pick-efficiency-bar {
+    height: 2px; background: rgba(255,255,255,0.08); border-radius: 999px;
+    margin-top: 4px; overflow: hidden;
+  }
+  .pick-efficiency-fill {
+    height: 100%; border-radius: 999px; background: var(--gold);
+    transition: width 0.6s ease 0.1s;
+  }
+
+  .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--gold); line-height: 1; text-align: center; }
+  .rank-num.pending { font-size: 18px; color: var(--dim); }
+
+  .player-info { min-width: 0; }
+  .player-name-row { display: flex; align-items: center; gap: 8px; }
+  .player-display-name { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--cream); letter-spacing: 0.03em; line-height: 1; }
+  .you-badge { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(213,10,10,0.15); border: 1px solid rgba(213,10,10,0.3); color: var(--gold); }
+  .host-badge { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--dim); }
+  .player-status-text { font-size: 11px; color: var(--dim); margin-top: 3px; }
+  .player-status-text.playing { color: var(--gold); }
+
+  .score-right { text-align: right; }
+  .score-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--gold); line-height: 1; }
+  .score-value.pending { font-size: 20px; color: var(--dim); }
+  .grade-badge {
+    display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: 13px;
+    padding: 2px 10px; border-radius: 4px; margin-top: 4px; letter-spacing: 0.08em;
+  }
+  .grade-s{background:#a8d8a0;color:#001a35} .grade-a{background:var(--gold);color:#001a35}
+  .grade-b{background:#7eb8d4;color:#001a35} .grade-c{background:#d4c47e;color:#1a1000}
+  .grade-d{background:#c47e7e;color:#1a0000} .grade-f{background:#8b0000;color:#fff}
+
+  /* Actions */
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn-gold {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.1em;
+    padding: 14px 40px; background: var(--gold); color: var(--green2);
+    border: none; border-radius: 6px; cursor: pointer; text-decoration: none;
+    display: inline-block; box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    transition: opacity 0.15s; min-height: 52px;
+  }
+  .btn-gold:active:not(:disabled) { opacity: 0.85; }
+  .btn-gold:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+  .btn-outline {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.1em;
+    padding: 14px 40px; background: transparent; color: var(--cream);
+    border: 1px solid var(--border); border-radius: 6px; cursor: pointer;
+    text-decoration: none; display: inline-block; transition: border-color 0.2s, color 0.2s;
+    min-height: 52px;
+  }
+  .btn-outline:active { border-color: var(--gold); color: var(--gold); }
+
+  /* ── Top picks per slot ── */
+  .slot-top-picks {
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid rgba(213,10,10,0.12);
+  }
+  .slot-top-label {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 6px;
+  }
+  .slot-top-row {
+    display: grid; grid-template-columns: 20px 1fr 40px 48px;
+    align-items: center; gap: 8px;
+    padding: 5px 8px; border-radius: 4px;
+    font-size: 11px; margin-bottom: 3px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid transparent;
+  }
+  .slot-top-row.top-you {
+    background: rgba(213,10,10,0.08);
+    border-color: rgba(213,10,10,0.25);
+  }
+  .slot-top-rank {
+    font-family: 'Bebas Neue', sans-serif; font-size: 14px;
+    color: rgba(245,245,245,0.4); text-align: center; line-height: 1;
+  }
+  .slot-top-row.top-you .slot-top-rank { color: var(--gold); }
+  .slot-top-name {
+    color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .slot-top-row.top-you .slot-top-name { color: var(--gold); }
+  .slot-top-year { color: var(--dim); font-size: 10px; }
+  .slot-top-val {
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+    color: var(--gold); text-align: right; line-height: 1;
+  }
+  .slot-top-you-badge {
+    font-size: 7px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 1px 4px; border-radius: 999px;
+    background: rgba(213,10,10,0.15); border: 1px solid rgba(213,10,10,0.3);
+    color: var(--gold); margin-left: 4px; vertical-align: middle;
+  }
+  .slot-top-separator { height: 1px; background: rgba(213,10,10,0.1); margin: 3px 0; }
+
+  /* Play Again readiness */
+  .play-again-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .ready-count {
+    font-size: 11px; color: var(--dim); letter-spacing: 0.08em;
+    display: none; align-items: center; gap: 8px;
+  }
+  .ready-count.visible { display: flex; }
+  .ready-pips { display: flex; gap: 4px; }
+  .ready-pip {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(213,10,10,0.3);
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .ready-pip.filled { background: #a8d8a0; border-color: rgba(168,216,160,0.6); }
+
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 80px; }
+    .logo { font-size: 22px; }
+    .status-title { font-size: 38px; }
+    .status-banner { padding: 20px 16px; }
+    .rank-num { font-size: 22px; }
+    .player-display-name { font-size: 18px; }
+    .score-row { padding: 14px 14px; gap: 8px; }
+    .actions { flex-direction: column; }
+    .btn-gold, .btn-outline { width: 100%; text-align: center; padding: 14px; }
+    .chat-panel { left: 12px; right: 12px; bottom: 80px; width: auto; max-width: none; border-radius: 12px; }
+    .chat-input { font-size: 16px; }
+    .slot-top-row { font-size: 12px; }
+    .score-card.expandable .score-row:hover { background: transparent; } /* disable hover on touch */
+  }
+
+  /* ── Chat widget ── */
+  .chat-bubble{position:fixed;bottom:24px;right:24px;z-index:100;width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);transition:transform 0.2s,box-shadow 0.2s;}
+  .chat-bubble:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,0.5);}
+  .chat-badge{position:absolute;top:-4px;right:-4px;background:#e05555;color:#fff;font-size:10px;font-family:'IBM Plex Mono',monospace;min-width:18px;height:18px;border-radius:999px;display:none;align-items:center;justify-content:center;padding:0 4px;font-weight:600;border:2px solid var(--green2);}
+  .chat-panel{position:fixed;bottom:88px;right:24px;z-index:99;width:320px;max-width:calc(100vw - 48px);background:var(--green2);border:1px solid var(--border);border-radius:12px;display:none;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;animation:chatIn 0.2s ease both;}
+  @keyframes chatIn{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:none}}
+  .chat-panel.open{display:flex;}
+  .chat-header{padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);flex-shrink:0;}
+  .chat-messages{flex:1;overflow-y:auto;padding:12px;min-height:200px;max-height:300px;display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth;}
+  .chat-messages::-webkit-scrollbar{width:4px} .chat-messages::-webkit-scrollbar-thumb{background:rgba(213,10,10,0.3);border-radius:2px;}
+  .chat-msg{display:flex;flex-direction:column;gap:2px;} .chat-msg.mine{align-items:flex-end;}
+  .chat-msg-name{font-size:9px;letter-spacing:0.1em;color:var(--dim);text-transform:uppercase;}
+  .chat-msg-bubble{display:inline-block;max-width:85%;padding:7px 11px;border-radius:10px;font-size:12px;line-height:1.4;word-break:break-word;background:rgba(255,255,255,0.06);color:var(--cream);border:1px solid rgba(255,255,255,0.06);}
+  .chat-msg.mine .chat-msg-bubble{background:rgba(213,10,10,0.18);border-color:rgba(213,10,10,0.3);}
+  .chat-empty{font-size:11px;color:var(--dim);text-align:center;padding:40px 16px;}
+  .chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);flex-shrink:0;}
+  .chat-input{flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--cream);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 10px;outline:none;transition:border-color 0.2s;}
+  .chat-input:focus{border-color:var(--gold);} .chat-input::placeholder{color:rgba(245,245,245,0.3);}
+  .chat-send{background:var(--gold);border:none;border-radius:6px;color:var(--green2);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;padding:8px 12px;cursor:pointer;flex-shrink:0;transition:opacity 0.15s;}
+  .chat-send:hover{opacity:0.85;}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+  <header>
+    <a href="/nfl/" class="logo">🏈 Draft Game</a>
+    <div style="font-size:11px;color:var(--dim);letter-spacing:0.08em;">
+      LOBBY · {{ scoreboard.lobby_id }}
+    </div>
+  </header>
+
+  <!-- Status banner -->
+  <div class="status-banner">
+    <div class="status-eyebrow">{{ scoreboard.stat_label }} · Multiplayer</div>
+    <div class="status-title" id="status-title">
+      {% if scoreboard.all_done %}Final Scores{% else %}Live Scoreboard{% endif %}
+    </div>
+    <div class="status-sub" id="status-sub">
+      {% if scoreboard.all_done %}
+        All {{ scoreboard.total_players }} players finished
+      {% else %}
+        {{ scoreboard.done_count }} of {{ scoreboard.total_players }} players finished
+      {% endif %}
+    </div>
+    {% if not scoreboard.all_done %}
+    <div class="progress-row">
+      <span class="progress-label">{{ scoreboard.done_count }}/{{ scoreboard.total_players }}</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"
+             style="width:{{ (scoreboard.done_count / scoreboard.total_players * 100) | round }}%"></div>
+      </div>
+      <div class="dot-pulse"><span></span><span></span><span></span></div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="section-label">Standings</div>
+  <div class="scoreboard" id="scoreboard">
+    {% for p in scoreboard.players %}
+    {% set has_picks = p.picks and p.picks | length > 0 %}
+    <div class="score-card {{ 'me' if p.player_id == player_id }} {{ 'first-place' if p.rank == 1 and scoreboard.all_done }} {{ 'expandable' if has_picks else 'no-picks' }}"
+         id="card-{{ p.player_id }}"
+         onclick="{{ 'toggleCard(this)' if has_picks else '' }}">
+      <div class="score-row">
+        <div class="rank-num {{ 'pending' if not p.rank }}">{{ p.rank if p.rank else '—' }}</div>
+        <div class="player-info">
+          <div class="player-name-row">
+            <div class="player-display-name">
+              {% if scoreboard.all_done %}
+                {% if p.rank == 1 %}👑 {% elif p.rank == scoreboard.players | selectattr('rank') | list | length %}💩 {% endif %}
+              {% endif %}
+              {{ p.name }}
+            </div>
+            {% if p.player_id == player_id %}<span class="you-badge">You</span>{% endif %}
+            {% if p.is_host %}<span class="host-badge">Host</span>{% endif %}
+          </div>
+          <div class="player-status-text {{ 'playing' if p.status == 'playing' }}">
+            {% if p.status == 'finished' %}
+              {{ (p.efficiency * 100) | round(1) }}% efficiency · click to see picks
+            {% else %}
+              Still playing…
+            {% endif %}
+          </div>
+        </div>
+        <div class="score-right">
+          {% if p.score is not none %}
+            <div class="score-value">
+              {% if scoreboard.stat_key in ['AVG', 'ERA'] %}
+                {{ "%.3f" | format(p.score) }}
+              {% else %}
+                {{ "%.1f" | format(p.score) }}
+              {% endif %}
+            </div>
+            <div class="grade-badge grade-{{ p.grade | lower }}">{{ p.grade }}</div>
+          {% else %}
+            <div class="score-value pending">—</div>
+          {% endif %}
+        </div>
+        <div class="expand-chevron">▼</div>
+      </div>
+
+      {% if has_picks %}
+      <div class="picks-drawer">
+        <div class="picks-inner">
+          {% for pick in p.picks %}
+          <div class="pick-row" style="animation-delay:{{ loop.index0 * 0.05 }}s">
+            <div class="pick-slot-num">{{ loop.index }}</div>
+            <div class="pick-detail">
+              <div class="pick-player-name">{{ pick.player }}</div>
+              <div class="pick-prompt">{{ pick.label }}</div>
+              <div class="pick-efficiency-bar">
+                <div class="pick-efficiency-fill" style="width:{{ (pick.efficiency * 100) | round }}%"></div>
+              </div>
+            </div>
+            <div class="pick-stat-col">
+              <div class="pick-stat-val">{{ pick.stat_value }}</div>
+              <div class="pick-stat-year">{{ pick.year }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Top picks per slot (hidden until game over) -->
+  {% if top_picks_by_slot %}
+  <div class="section-label" style="margin-top:28px;{{ '' if scoreboard.all_done else 'display:none' }}" id="top-picks-label">Top Picks · By Slot</div>
+  <div style="display:{{ 'flex' if scoreboard.all_done else 'none' }};flex-direction:column;gap:12px;margin-bottom:36px" id="top-picks-section">
+    {% for slot_tops in top_picks_by_slot %}
+    {% set prompt = lobby.prompts[loop.index0] if lobby.prompts else None %}
+    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:8px;padding:16px 20px">
+      <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px">
+        Slot {{ loop.index }} · {{ prompt.label if prompt else '' }}
+      </div>
+      <div>
+        <div class="slot-top-label">Best Picks</div>
+        {% for t in slot_tops %}
+        <div class="slot-top-row">
+          <div class="slot-top-rank">{{ loop.index }}</div>
+          <div class="slot-top-name">{{ t.player }}</div>
+          <div class="slot-top-year">{{ t.year }}</div>
+          <div class="slot-top-val">
+            {% if scoreboard.stat_key in ['AVG', 'ERA'] %}{{ "%.3f" | format(t.value) }}{% else %}{{ t.value }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Actions -->
+  <div class="actions">
+    {% if scoreboard.all_done %}
+    <div class="play-again-wrap">
+      <button class="btn-gold" id="play-again-btn" onclick="playAgain()">
+        Play Again
+      </button>
+      <div class="ready-count" id="ready-count">
+        <div class="ready-pips" id="ready-pips"></div>
+        <span id="ready-text">Waiting for others…</span>
+      </div>
+    </div>
+    {% endif %}
+    <a href="/nfl-mp/" class="btn-outline">New Lobby</a>
+    <a href="/nfl/" class="btn-outline">Solo Game</a>
+  </div>
+</div>
+
+<!-- Chat widget -->
+<button class="chat-bubble" onclick="toggleChat()" title="Chat">
+  💬
+  <div class="chat-badge" id="chat-badge">0</div>
+</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">Lobby Chat</div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-empty" id="chat-empty">No messages yet. Say hi!</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" type="text" placeholder="Say something…"
+           maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button class="chat-send" onclick="sendChat()">Send</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const LOBBY_ID  = "{{ scoreboard.lobby_id }}";
+  const PLAYER_ID = "{{ player_id }}";
+
+  const socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("nfl_join_lobby_room",    { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+    socket.emit("nfl_request_scoreboard", { lobby_id: LOBBY_ID });
+  });
+
+  socket.on("nfl_scoreboard_updated", (data) => {
+    updateScoreboard(data);
+  });
+
+  socket.on("nfl_game_over", (data) => {
+    updateScoreboard(data);
+    document.getElementById("status-title").textContent = "Final Scores";
+    // Reveal top picks section now that all scores are in
+    const tps   = document.getElementById("top-picks-section");
+    const tplbl = document.getElementById("top-picks-label");
+    if (tps)   { tps.style.display   = "flex"; }
+    if (tplbl) { tplbl.style.display = "flex"; }
+  });
+
+  // ── Play Again ──────────────────────────────────────────────────────
+  let playAgainClicked = false;
+  const TOTAL_PLAYERS  = {{ scoreboard.total_players }};
+
+  function playAgain() {
+    if (playAgainClicked) return;
+    playAgainClicked = true;
+
+    const btn = document.getElementById("play-again-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Waiting…"; }
+
+    socket.emit("nfl_play_again", { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+
+    // Show the ready count row immediately (at least 1 = you)
+    showReadyCount(1, TOTAL_PLAYERS);
+  }
+
+  function showReadyCount(ready, total) {
+    const row  = document.getElementById("ready-count");
+    const pips = document.getElementById("ready-pips");
+    const txt  = document.getElementById("ready-text");
+    if (!row) return;
+
+    row.classList.add("visible");
+    pips.innerHTML = Array.from({ length: total }, (_, i) =>
+      `<div class="ready-pip ${i < ready ? 'filled' : ''}"></div>`
+    ).join('');
+    txt.textContent = ready === total
+      ? "Everyone's in! Starting…"
+      : `${ready} / ${total} ready to play again`;
+  }
+
+  socket.on("nfl_rematch_ready_update", (data) => {
+    showReadyCount(data.ready_count, data.total_players);
+  });
+
+  // Server reset the lobby — everyone goes back to the wait screen
+  socket.on("nfl_lobby_reset", () => {
+    window.location.href = `/nfl-mp/wait/${LOBBY_ID}`;
+  });
+
+  function toggleCard(card) {
+    card.classList.toggle('open');
+  }
+
+  const STAT_KEY = "{{ scoreboard.stat_key }}";
+
+  // Decimal places per stat — AVG/ERA need 3, others need 1
+  function fmtScore(s) {
+    if (s === null || s === undefined) return null;
+    const decimals = (STAT_KEY === "AVG" || STAT_KEY === "ERA") ? 3 : 1;
+    return Number(s).toFixed(decimals);
+  }
+
+  function buildPicksDrawer(picks, statLabel) {
+    if (!picks || !picks.length) return '';
+    const rows = picks.map((pick, i) => `
+      <div class="pick-row" style="animation-delay:${i * 0.05}s">
+        <div class="pick-slot-num">${i + 1}</div>
+        <div class="pick-detail">
+          <div class="pick-player-name">${pick.player}</div>
+          <div class="pick-prompt">${pick.label || ''}</div>
+          <div class="pick-efficiency-bar">
+            <div class="pick-efficiency-fill" style="width:${Math.round((pick.efficiency||0)*100)}%"></div>
+          </div>
+        </div>
+        <div class="pick-stat-col">
+          <div class="pick-stat-val">${pick.stat_value ?? '—'}</div>
+          <div class="pick-stat-year">${pick.year}</div>
+        </div>
+      </div>
+    `).join('');
+    return `<div class="picks-drawer"><div class="picks-inner">${rows}</div></div>`;
+  }
+
+  function updateScoreboard(data) {
+    const board = document.getElementById("scoreboard");
+    const sub   = document.getElementById("status-sub");
+    const fill  = document.getElementById("progress-fill");
+
+    sub.textContent = data.all_done
+      ? `All ${data.total_players} players finished`
+      : `${data.done_count} of ${data.total_players} players finished`;
+
+    if (fill) fill.style.width = Math.round(data.done_count / data.total_players * 100) + '%';
+
+    // Preserve which cards are currently open before re-rendering
+    const openIds = new Set(
+      [...board.querySelectorAll('.score-card.open')].map(el => el.id)
+    );
+
+    board.innerHTML = data.players.map((p, idx) => {
+      const hasPicks   = p.picks && p.picks.length > 0;
+      const isOpen     = openIds.has(`card-${p.player_id}`);
+      const scoreHtml  = fmtScore(p.score) !== null
+        ? `<div class="score-value">${fmtScore(p.score)}</div>
+           <div class="grade-badge grade-${p.grade.toLowerCase()}">${p.grade}</div>`
+        : `<div class="score-value pending">—</div>`;
+      const statusText = p.status === 'finished'
+        ? `${(p.efficiency * 100).toFixed(1)}% efficiency · click to see picks`
+        : 'Still playing…';
+
+      return `
+        <div class="score-card
+             ${p.player_id === PLAYER_ID ? 'me' : ''}
+             ${p.rank === 1 && data.all_done ? 'first-place' : ''}
+             ${hasPicks ? 'expandable' : 'no-picks'}
+             ${isOpen ? 'open' : ''}"
+             id="card-${p.player_id}"
+             style="animation-delay:${idx * 0.05}s"
+             ${hasPicks ? 'onclick="toggleCard(this)"' : ''}>
+          <div class="score-row">
+            <div class="rank-num ${!p.rank ? 'pending' : ''}">${p.rank || '—'}</div>
+            <div class="player-info">
+              <div class="player-name-row">
+                const finishedCount = data.players.filter(pl => pl.rank).length;
+                const emoji = data.all_done
+                  ? (p.rank === 1 ? '👑 ' : p.rank === finishedCount ? '💩 ' : '')
+                  : '';
+                <div class="player-display-name">${emoji}${p.name}</div>
+                ${p.player_id === PLAYER_ID ? '<span class="you-badge">You</span>' : ''}
+                ${p.is_host ? '<span class="host-badge">Host</span>' : ''}
+              </div>
+              <div class="player-status-text ${p.status === 'playing' ? 'playing' : ''}">
+                ${statusText}
+              </div>
+            </div>
+            <div class="score-right">${scoreHtml}</div>
+            <div class="expand-chevron">▼</div>
+          </div>
+          ${hasPicks ? buildPicksDrawer(p.picks, data.stat_label) : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ── Chat ────────────────────────────────────────────────────────────────
+  let chatOpen = false, unread = 0;
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById("chat-panel").classList.toggle("open", chatOpen);
+    if (chatOpen) { unread = 0; updateBadge(); document.getElementById("chat-input").focus(); scrollChat(); }
+  }
+  function updateBadge() {
+    const b = document.getElementById("chat-badge");
+    b.style.display = unread > 0 ? "flex" : "none";
+    b.textContent   = unread > 9 ? "9+" : unread;
+  }
+  function scrollChat() {
+    const box = document.getElementById("chat-messages");
+    box.scrollTop = box.scrollHeight;
+  }
+  function appendChatMsg(playerId, name, text, isMe) {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+    const el = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escHtml(name)}</div>` : ''}<div class="chat-msg-bubble">${escHtml(text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  }
+  function sendChat() {
+    const input = document.getElementById("chat-input");
+    const text  = input.value.trim();
+    if (!text) return;
+    console.log("[Chat] Emitting chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
+    socket.emit("nfl_chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
+    input.value = "";
+    appendChatMsg(PLAYER_ID, "You", text, true);
+  }
+  socket.on("nfl_chat_message", (msg) => {
+    console.log("[Chat] Received chat_message from server:", msg);
+    if (msg.player_id === PLAYER_ID) return; // skip own — shown by local echo
+    appendChatMsg(msg.player_id, msg.name, msg.text, false);
+    if (!chatOpen) { unread++; updateBadge(); }
+  });
+  socket.on("nfl_chat_error", (data) => {
+    console.error("[Chat] Server returned error:", data.message);
+    const el = document.createElement("div");
+    el.style.cssText = "font-size:11px;color:#e07070;padding:6px 12px;font-style:italic;";
+    el.textContent = "⚠ " + data.message;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  });
+  function escHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+</script>
+{% endblock %}

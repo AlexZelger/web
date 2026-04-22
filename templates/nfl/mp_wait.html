@@ -1,0 +1,435 @@
+<!-- templates/nfl/mp_wait.html -->
+{% extends "base.html" %}
+{% block title %}Waiting Room — NFL Draft Game{% endblock %}
+
+{% block head %}
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  * { -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  :root {
+    --green2: #001a35; --cream: #f5f5f5; --gold: #d50a0a;
+    --dim: rgba(245,245,245,0.5); --border: rgba(213,10,10,0.3);
+  }
+  .mp-page {
+    background: var(--green2); min-height: 100vh;
+    font-family: 'IBM Plex Mono', monospace; padding: 24px 16px;
+    position: relative;
+  }
+  .mp-page::before {
+    content: ''; position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px),
+      repeating-linear-gradient(90deg,transparent,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 4px);
+    pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 600px; margin: 0 auto; }
+
+  .wait-header { text-align: center; margin-bottom: 36px; }
+  .wait-eyebrow {
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 8px;
+  }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 52px;
+    letter-spacing: 0.04em; color: var(--cream); line-height: 1;
+  }
+  .wait-sub { font-size: 12px; color: var(--dim); margin-top: 6px; }
+
+  /* Share link */
+  .share-box {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px 24px; margin-bottom: 28px;
+  }
+  .share-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 10px;
+  }
+  .share-link-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .share-link-input {
+    flex: 1; min-width: 0; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--cream); font-family: 'IBM Plex Mono', monospace;
+    font-size: 16px; /* prevents iOS zoom */ padding: 10px 12px; outline: none;
+  }
+  .copy-btn {
+    background: rgba(213,10,10,0.15); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--gold); font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 18px; cursor: pointer; transition: background 0.2s; white-space: nowrap;
+    min-height: 44px; /* minimum touch target */
+  }
+  .copy-btn:hover { background: rgba(213,10,10,0.25); }
+  .copy-btn.copied { color: #a8d8a0; border-color: rgba(168,216,160,0.4); }
+  .share-btn {
+    background: var(--gold); border: none;
+    border-radius: 6px; color: var(--green2); font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 18px; cursor: pointer; transition: opacity 0.2s; white-space: nowrap;
+    display: none; min-height: 44px;
+  }
+  .share-btn:active { opacity: 0.75; }
+
+  /* ── Chat widget ── */
+  .chat-bubble {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--gold); border: none; cursor: pointer;
+    font-size: 22px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .chat-bubble:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,0.5); }
+  .chat-badge {
+    position: absolute; top: -4px; right: -4px;
+    background: #e05555; color: #fff; font-size: 10px; font-family: 'IBM Plex Mono', monospace;
+    min-width: 18px; height: 18px; border-radius: 999px;
+    display: none; align-items: center; justify-content: center;
+    padding: 0 4px; font-weight: 600; border: 2px solid var(--green2);
+  }
+  .chat-panel {
+    position: fixed; bottom: 88px; right: 24px; z-index: 99;
+    width: 320px; max-width: calc(100vw - 48px);
+    background: var(--green2); border: 1px solid var(--border);
+    border-radius: 12px; display: none; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    overflow: hidden;
+    animation: chatIn 0.2s ease both;
+  }
+  @keyframes chatIn { from { opacity:0; transform:translateY(12px) scale(0.97); } to { opacity:1; transform:none; } }
+  .chat-panel.open { display: flex; }
+  .chat-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); flex-shrink: 0;
+  }
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px; min-height: 200px; max-height: 300px;
+    display: flex; flex-direction: column; gap: 8px;
+    scroll-behavior: smooth;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: rgba(213,10,10,0.3); border-radius: 2px; }
+  .chat-msg { display: flex; flex-direction: column; gap: 2px; }
+  .chat-msg.mine { align-items: flex-end; }
+  .chat-msg-name { font-size: 9px; letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
+  .chat-msg-bubble {
+    display: inline-block; max-width: 85%; padding: 7px 11px;
+    border-radius: 10px; font-size: 12px; line-height: 1.4; word-break: break-word;
+    background: rgba(255,255,255,0.06); color: var(--cream);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .chat-msg.mine .chat-msg-bubble {
+    background: rgba(213,10,10,0.18); border-color: rgba(213,10,10,0.3); color: var(--cream);
+  }
+  .chat-empty {
+    font-size: 11px; color: var(--dim); text-align: center;
+    padding: 40px 16px;
+  }
+  .chat-input-row {
+    display: flex; gap: 8px; padding: 10px 12px;
+    border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--cream); font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; padding: 8px 10px; outline: none; transition: border-color 0.2s;
+  }
+  .chat-input:focus { border-color: var(--gold); }
+  .chat-input::placeholder { color: rgba(245,245,245,0.3); }
+  .chat-send {
+    background: var(--gold); border: none; border-radius: 6px;
+    color: var(--green2); font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 8px 12px; cursor: pointer; flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .chat-send:hover { opacity: 0.85; }
+
+  /* Player list */
+  .players-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden; margin-bottom: 28px;
+  }
+  .players-card-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .players-card-title {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold);
+  }
+  .players-count { font-size: 12px; color: var(--dim); }
+  .player-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px 20px; border-bottom: 1px solid rgba(213,10,10,0.1);
+    animation: slideIn 0.3s ease both;
+    min-height: 52px; /* comfortable touch target */
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
+  .player-row:last-child { border-bottom: none; }
+  .player-dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #a8d8a0;
+    flex-shrink: 0; box-shadow: 0 0 6px rgba(168,216,160,0.6);
+  }
+  .player-name { font-size: 14px; color: var(--cream); flex: 1; }
+  .player-badge {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 10px; border-radius: 999px;
+    background: rgba(213,10,10,0.12); border: 1px solid rgba(213,10,10,0.3);
+    color: var(--gold);
+  }
+  .waiting-pulse {
+    font-size: 11px; color: var(--dim); letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dot-pulse { display: flex; gap: 3px; }
+  .dot-pulse span {
+    width: 4px; height: 4px; border-radius: 50%; background: var(--dim);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes pulse { 0%,80%,100% { opacity:0.3; } 40% { opacity:1; } }
+
+  /* Start button */
+  .start-btn {
+    width: 100%; background: var(--gold); color: var(--green2);
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+    letter-spacing: 0.1em; padding: 16px; border: none;
+    border-radius: 8px; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+  }
+  .start-btn:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.3); }
+  .start-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+  .host-note { font-size: 11px; color: var(--dim); text-align: center; margin-top: 10px; }
+  .guest-note {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; text-align: center;
+    font-size: 13px; color: var(--dim); line-height: 1.6;
+  }
+  .guest-note strong { color: var(--cream); }
+
+  /* ── Chat widget mobile: full-width panel ── */
+  @media (max-width: 480px) {
+    .chat-panel {
+      left: 12px; right: 12px; bottom: 80px;
+      width: auto; max-width: none;
+      border-radius: 12px;
+    }
+    .chat-input { font-size: 16px; } /* prevent iOS zoom */
+    .share-link-row { flex-direction: column; }
+    .copy-btn, .share-btn { width: 100%; justify-content: center; }
+    .share-btn { display: none; } /* re-hidden; JS will show if supported */
+    .wait-header { margin-bottom: 24px; }
+    h1 { font-size: 40px; }
+  }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+{% endblock %}
+
+{% block content %}
+<div class="mp-page">
+  <div class="container">
+
+    <div class="wait-header">
+      <div class="wait-eyebrow">Lobby · {{ lobby.lobby_id }}</div>
+      <h1>Waiting Room</h1>
+      <div class="wait-sub" id="wait-sub">Waiting for players to join…</div>
+    </div>
+
+    <!-- Share link -->
+    <div class="share-box">
+      <div class="share-label">Share this link with friends</div>
+      <div class="share-link-row">
+        <input class="share-link-input" id="share-link" type="text" readonly
+               value="{{ request.host_url }}mp/join/{{ lobby.lobby_id }}"/>
+        <button class="copy-btn" id="copy-btn" onclick="copyLink()">Copy</button>
+        <button class="share-btn" id="share-btn" onclick="shareLink()">Share</button>
+      </div>
+    </div>
+
+    <!-- Player list -->
+    <div class="players-card">
+      <div class="players-card-header">
+        <span class="players-card-title">Players</span>
+        <span class="players-count" id="player-count">{{ lobby.players | length }} joined</span>
+      </div>
+      <div id="player-list">
+        {% for pid, p in lobby.players.items() %}
+        <div class="player-row">
+          <div class="player-dot"></div>
+          <div class="player-name">{{ p.name }}</div>
+          {% if p.is_host %}<span class="player-badge">Host</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Host controls / guest message -->
+    {% if is_host %}
+    <button class="start-btn" id="start-btn" onclick="startGame()">
+      Start Game
+    </button>
+    <div class="host-note">Everyone in the lobby will get the same prompts.</div>
+    {% else %}
+    <div class="guest-note">
+      <div class="waiting-pulse">
+        Waiting for the host to start
+        <div class="dot-pulse"><span></span><span></span><span></span></div>
+      </div>
+      <div style="margin-top:8px;font-size:12px;">
+        The game will begin automatically when <strong>{{ lobby.players | selectattr('is_host') | map(attribute='name') | first }}</strong> starts it.
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Chat widget -->
+<button class="chat-bubble" onclick="toggleChat()" title="Chat">
+  💬
+  <div class="chat-badge" id="chat-badge">0</div>
+</button>
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-header">Lobby Chat</div>
+  <div class="chat-messages" id="chat-messages">
+    <div class="chat-empty" id="chat-empty">No messages yet. Say hi!</div>
+  </div>
+  <div class="chat-input-row">
+    <input class="chat-input" id="chat-input" type="text" placeholder="Say something…"
+           maxlength="200" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()"/>
+    <button class="chat-send" onclick="sendChat()">Send</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const LOBBY_ID  = "{{ lobby.lobby_id }}";
+  const PLAYER_ID = "{{ player_id }}";
+  const IS_HOST   = {{ 'true' if is_host else 'false' }};
+
+  const socket = io();
+
+  socket.on("connect", () => {
+    socket.emit("nfl_join_lobby_room", { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+  });
+
+  // Update player list when someone joins
+  socket.on("nfl_lobby_updated", (data) => {
+    const list  = document.getElementById("player-list");
+    const count = document.getElementById("player-count");
+    const sub   = document.getElementById("wait-sub");
+
+    count.textContent = data.players.length + " joined";
+    sub.textContent   = data.players.length === 1
+      ? "Waiting for players to join…"
+      : `${data.players.length} player${data.players.length !== 1 ? 's' : ''} ready`;
+
+    list.innerHTML = data.players.map(p => `
+      <div class="player-row">
+        <div class="player-dot"></div>
+        <div class="player-name">${p.name}</div>
+        ${p.is_host ? '<span class="player-badge">Host</span>' : ''}
+      </div>
+    `).join('');
+  });
+
+  // Game started — redirect everyone to the play page
+  socket.on("nfl_game_started", () => {
+    window.location.href = `/nfl-mp/play/${LOBBY_ID}`;
+  });
+
+  socket.on("nfl_error", (data) => {
+    alert(data.message);
+  });
+
+  function startGame() {
+    const btn = document.getElementById("start-btn");
+    btn.disabled    = true;
+    btn.textContent = "Starting…";
+    socket.emit("nfl_start_game", { lobby_id: LOBBY_ID, player_id: PLAYER_ID });
+  }
+
+  function copyLink() {
+    const input = document.getElementById("share-link");
+    const btn   = document.getElementById("copy-btn");
+    navigator.clipboard.writeText(input.value).then(() => {
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    });
+  }
+
+  function shareLink() {
+    const url = document.getElementById("share-link").value;
+    navigator.share({
+      title: "🏈 NFL Draft Game",
+      text:  "Join my NFL Draft lobby!",
+      url:   url,
+    }).catch(() => {});  // user cancelled — no action needed
+  }
+
+  // Show the native share button only on devices that support it
+  if (navigator.share) {
+    document.getElementById("share-btn").style.display = "inline-block";
+  }
+
+  // ── Chat ────────────────────────────────────────────────────────────────
+  const PLAYER_NAME = "{{ player_name }}";
+  let chatOpen = false, unread = 0;
+
+  function toggleChat() {
+    chatOpen = !chatOpen;
+    document.getElementById("chat-panel").classList.toggle("open", chatOpen);
+    if (chatOpen) { unread = 0; updateBadge(); document.getElementById("chat-input").focus(); scrollChat(); }
+  }
+  function updateBadge() {
+    const b = document.getElementById("chat-badge");
+    b.style.display = unread > 0 ? "flex" : "none";
+    b.textContent   = unread > 9 ? "9+" : unread;
+  }
+  function scrollChat() {
+    const box = document.getElementById("chat-messages");
+    box.scrollTop = box.scrollHeight;
+  }
+  function appendChatMsg(playerId, name, text, isMe) {
+    const empty = document.getElementById("chat-empty");
+    if (empty) empty.remove();
+    const el = document.createElement("div");
+    el.className = "chat-msg" + (isMe ? " mine" : "");
+    el.innerHTML = `${!isMe ? `<div class="chat-msg-name">${escapeHtml(name)}</div>` : ''}<div class="chat-msg-bubble">${escapeHtml(text)}</div>`;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  }
+  function sendChat() {
+    const input = document.getElementById("chat-input");
+    const text  = input.value.trim();
+    if (!text) return;
+    console.log("[Chat] Emitting chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
+    socket.emit("nfl_chat_message", { lobby_id: LOBBY_ID, player_id: PLAYER_ID, text });
+    input.value = "";
+    appendChatMsg(PLAYER_ID, "You", text, true);
+  }
+  socket.on("nfl_chat_message", (msg) => {
+    console.log("[Chat] Received chat_message from server:", msg);
+    if (msg.player_id === PLAYER_ID) return; // skip own — shown by local echo
+    appendChatMsg(msg.player_id, msg.name, msg.text, false);
+    if (!chatOpen) { unread++; updateBadge(); }
+  });
+  socket.on("nfl_chat_error", (data) => {
+    console.error("[Chat] Server returned error:", data.message);
+    const el = document.createElement("div");
+    el.style.cssText = "font-size:11px;color:#e07070;padding:6px 12px;font-style:italic;";
+    el.textContent = "⚠ " + data.message;
+    document.getElementById("chat-messages").appendChild(el);
+    scrollChat();
+  });
+  function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+</script>
+{% endblock %}

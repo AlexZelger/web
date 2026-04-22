@@ -1,0 +1,519 @@
+<!-- templates/nfl/results.html -->
+{% extends "base.html" %}  {# replace with your actual base template tag #}
+
+{% block title %}Results — NFL Draft Game{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Results — NFL Draft Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
+
+    :root {
+      --green:  #013369;
+      --green2: #001a35;
+      --cream:  #f5f5f5;
+      --gold:   #d50a0a;
+      --red:    #8b0000;
+      --dim:    rgba(245,245,245,0.5);
+      --border: rgba(213,10,10,0.3);
+    }
+
+    body {
+      background-color: var(--green2);
+      color: var(--cream);
+      font-family: 'IBM Plex Mono', monospace;
+      min-height: 100vh;
+      padding: 24px 16px 80px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px);
+      pointer-events: none; z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 20px; border-bottom: 1px solid var(--border);
+      margin-bottom: 32px; flex-wrap: wrap; gap: 12px;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif; font-size: 28px;
+      letter-spacing: 0.06em; color: var(--cream); text-decoration: none;
+    }
+
+    /* ── Hero score ── */
+    .hero {
+      text-align: center;
+      padding: 32px 20px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 32px;
+      animation: fadeUp 0.6s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%; transform: translateX(-50%);
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(213,10,10,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-label {
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 8px;
+    }
+
+    .hero-score {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(72px, 14vw, 120px);
+      color: var(--gold);
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .hero-grade {
+      display: inline-block;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      background: var(--gold);
+      color: var(--green2);
+      padding: 4px 20px;
+      border-radius: 4px;
+      margin: 12px 0;
+      letter-spacing: 0.1em;
+    }
+
+    .hero-grade.grade-s { background: #a8d8a0; color: #001a35; }
+    .hero-grade.grade-a { background: var(--gold); }
+    .hero-grade.grade-b { background: #7eb8d4; color: #001a35; }
+    .hero-grade.grade-c { background: #d4c47e; color: #1a1000; }
+    .hero-grade.grade-d { background: #c47e7e; color: #1a0000; }
+    .hero-grade.grade-f { background: var(--red); }
+
+    .hero-sub {
+      font-size: 12px; color: var(--dim); margin-top: 8px;
+    }
+
+    .efficiency-bar {
+      max-width: 320px; margin: 20px auto 0;
+    }
+
+    .eff-labels {
+      display: flex; justify-content: space-between;
+      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--dim); margin-bottom: 6px;
+    }
+
+    .eff-track {
+      height: 8px; background: rgba(255,255,255,0.08);
+      border-radius: 999px; overflow: hidden;
+    }
+
+    .eff-fill {
+      height: 100%; background: var(--gold);
+      border-radius: 999px;
+      transition: width 1.2s cubic-bezier(0.22,1,0.36,1);
+      width: 0%;
+    }
+
+    /* ── Slot breakdown ── */
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px; letter-spacing: 0.12em; color: var(--gold);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 12px;
+    }
+    .section-title::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    .breakdown { display: flex; flex-direction: column; gap: 12px; margin-bottom: 40px; }
+
+    .result-row {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 12px 16px;
+      align-items: start;
+      animation: cardIn 0.5s ease both;
+    }
+
+    .result-row:nth-child(1) { animation-delay: 0.1s; }
+    .result-row:nth-child(2) { animation-delay: 0.18s; }
+    .result-row:nth-child(3) { animation-delay: 0.26s; }
+    .result-row:nth-child(4) { animation-delay: 0.34s; }
+    .result-row:nth-child(5) { animation-delay: 0.42s; }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateX(-12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .row-num {
+      font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+      color: var(--gold); line-height: 1; padding-top: 2px;
+    }
+
+    .row-main { min-width: 0; }
+
+    .row-prompt {
+      font-size: 11px; color: var(--dim); letter-spacing: 0.04em;
+      margin-bottom: 6px; line-height: 1.4;
+    }
+
+    .row-player {
+      font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+      color: var(--cream); letter-spacing: 0.04em; line-height: 1;
+    }
+
+    .row-year {
+      font-size: 11px; color: var(--dim); margin-top: 2px;
+    }
+
+    .row-bars { margin-top: 10px; }
+
+    .bar-wrap { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .bar-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); width: 60px; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 6px; background: rgba(255,255,255,0.07); border-radius: 999px; overflow: hidden; }
+    .bar-fill   { height: 100%; border-radius: 999px; transition: width 1s cubic-bezier(0.22,1,0.36,1); width: 0%; }
+    .bar-fill.yours { background: var(--gold); }
+    .bar-fill.best  { background: rgba(168,216,160,0.6); }
+    .bar-val { font-size: 11px; color: var(--cream); width: 36px; text-align: right; flex-shrink: 0; }
+
+    .row-score { text-align: right; }
+
+    .score-big {
+      font-family: 'Bebas Neue', sans-serif; font-size: 38px;
+      color: var(--gold); line-height: 1;
+    }
+
+    .score-small {
+      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--dim); margin-top: 2px;
+    }
+
+    .left-on-table {
+      font-size: 11px; color: rgba(224,112,112,0.8); margin-top: 4px;
+    }
+
+    /* ── Action buttons ── */
+    .actions {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+      letter-spacing: 0.1em; padding: 14px 48px;
+      background: var(--gold); color: var(--green2);
+      border: none; border-radius: 6px; cursor: pointer;
+      text-decoration: none; display: inline-block;
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.3); min-height: 52px;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:active { opacity: 0.85; }
+
+    .btn-secondary {
+      font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+      letter-spacing: 0.1em; padding: 14px 48px;
+      background: transparent; color: var(--cream);
+      border: 1px solid var(--border); border-radius: 6px;
+      cursor: pointer; text-decoration: none; display: inline-block;
+      transition: border-color 0.2s, color 0.2s; min-height: 52px;
+    }
+    .btn-secondary:active { border-color: var(--gold); color: var(--gold); }
+
+    /* ── Top picks leaderboard ── */
+    .top-picks-section {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(213,10,10,0.15);
+    }
+
+    .top-picks-label {
+      font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 8px;
+    }
+
+    .top-picks-list {
+      display: flex; flex-direction: column; gap: 4px;
+    }
+
+    .top-pick-row {
+      display: grid; grid-template-columns: 22px 1fr 46px 52px;
+      align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 5px;
+      font-size: 11px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid transparent;
+    }
+    .top-pick-row.is-you {
+      background: rgba(213,10,10,0.08);
+      border-color: rgba(213,10,10,0.3);
+    }
+    .top-pick-rank {
+      font-family: 'Bebas Neue', sans-serif; font-size: 15px;
+      color: var(--dim); text-align: center; line-height: 1;
+    }
+    .top-pick-row.is-you .top-pick-rank { color: var(--gold); }
+    .top-pick-name {
+      color: var(--cream); white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .top-pick-row.is-you .top-pick-name { color: var(--gold); }
+    .top-pick-year { color: var(--dim); font-size: 10px; }
+    .top-pick-val {
+      font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+      color: var(--gold); text-align: right; line-height: 1;
+    }
+    .top-pick-you-badge {
+      font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 1px 5px; border-radius: 999px;
+      background: rgba(213,10,10,0.15); border: 1px solid rgba(213,10,10,0.3);
+      color: var(--gold); margin-left: 5px; vertical-align: middle;
+    }
+    .top-pick-separator {
+      height: 1px; background: rgba(213,10,10,0.12);
+      margin: 3px 0;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 16px 12px 60px; }
+      .logo { font-size: 22px; }
+      header { padding-bottom: 14px; margin-bottom: 20px; }
+      .hero { padding: 24px 16px; margin-bottom: 20px; }
+      .hero-score { font-size: clamp(60px, 18vw, 90px); }
+      /* Stack result row: score moves below bars */
+      .result-row {
+        grid-template-columns: 24px 1fr;
+        grid-template-rows: auto auto;
+      }
+      .row-score {
+        grid-column: 2; text-align: left;
+        display: flex; align-items: baseline; gap: 8px;
+        margin-top: 4px;
+      }
+      .score-big { font-size: 28px; }
+      /* Full-width buttons */
+      .actions { flex-direction: column; }
+      .btn-primary, .btn-secondary { width: 100%; text-align: center; padding: 14px; }
+      /* Top picks grid tighter on mobile */
+      .top-pick-row {
+        grid-template-columns: 20px 1fr 36px 44px;
+        gap: 6px; padding: 7px 8px;
+      }
+    }
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <a href="/nfl/" class="logo">🏈 Draft Game</a>
+  </header>
+
+  <!-- Hero score -->
+  <div class="hero">
+    <div class="hero-label">
+      {% if result.ascending %}Avg ERA · Lower is Better{% else %}Final Score · {{ result.stat_label }}{% endif %}
+    </div>
+    <div class="hero-score" id="hero-score">0</div>
+    <div class="hero-grade grade-{{ result.grade | lower }}" id="hero-grade">{{ result.grade }}</div>
+    <div class="hero-sub">
+      {{ (result.efficiency * 100) | round(1) }}% efficiency
+      · {% if result.ascending %}best avg ERA{% else %}max possible{% endif %}
+      {% if result.stat_key in ['AVG', 'ERA'] %}
+        {{ "%.3f" | format(result.max_possible) }}
+      {% else %}
+        {{ "%.1f" | format(result.max_possible) }}
+      {% endif %}
+    </div>
+    <div class="efficiency-bar">
+      <div class="eff-labels">
+        <span>{% if result.ascending %}Your Avg ERA{% else %}Your Score{% endif %}</span>
+        <span>{% if result.ascending %}Best Avg ERA{% else %}Max Possible{% endif %}</span>
+      </div>
+      <div class="eff-track">
+        <div class="eff-fill" id="eff-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slot breakdown -->
+  <div class="section-title">Slot Breakdown</div>
+  <div class="breakdown" id="breakdown"></div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <a href="/nfl/new" class="btn-primary">Play Again</a>
+    <a href="/nfl/" class="btn-secondary">Lobby</a>
+  </div>
+
+</div>
+
+<script>
+  const RESULT = {{ result | tojson }};
+
+  // Decimal places depend on stat — AVG and ERA need 3, others need 1
+  const SCORE_DECIMALS = (RESULT.stat_key === "AVG" || RESULT.stat_key === "ERA") ? 3 : 1;
+
+  function fmtVal(v) {
+    if (v === null || v === undefined) return "—";
+    return Number(v).toFixed(SCORE_DECIMALS);
+  }
+
+  // ── Animated score counter ─────────────────────────────────────────────
+  function animateCount(el, target, duration) {
+    const start = performance.now();
+    function step(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const val = target * eased;
+      el.textContent = Number(val).toFixed(SCORE_DECIMALS);
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = Number(target).toFixed(SCORE_DECIMALS);
+    }
+    requestAnimationFrame(step);
+  }
+
+  animateCount(document.getElementById('hero-score'), RESULT.total_score, 1200);
+
+  // Animate efficiency bar
+  setTimeout(() => {
+    document.getElementById('eff-fill').style.width = (RESULT.efficiency * 100) + '%';
+  }, 200);
+
+  // ── Build slot rows ────────────────────────────────────────────────────
+  const breakdown = document.getElementById('breakdown');
+  const ascending  = RESULT.ascending || false;
+
+  // For ERA (ascending): bar scale is inverted — smaller value = longer bar = better.
+  // Use the worst (highest) value as the scale anchor so bars are meaningful.
+  const allYours = RESULT.slots.map(s => s.stat_value || 0);
+  const allBests = RESULT.slots.map(s => s.best_value || 0);
+  const maxBest  = ascending
+    ? Math.max(...allYours, ...allBests)   // ERA: scale off worst value
+    : Math.max(...allBests);
+
+  RESULT.slots.forEach((slot, i) => {
+    let yourPct, bestPct;
+    if (ascending) {
+      // Lower ERA = longer bar: invert pct so best ERA fills the bar most
+      yourPct = maxBest ? ((maxBest - slot.stat_value) / maxBest * 100) : 0;
+      bestPct = maxBest ? ((maxBest - slot.best_value) / maxBest * 100) : 0;
+    } else {
+      yourPct = maxBest ? (slot.stat_value / maxBest * 100) : 0;
+      bestPct = maxBest ? (slot.best_value / maxBest * 100) : 0;
+    }
+
+    const leftOnTable = slot.points_left > 0
+      ? `<div class="left-on-table">${ascending ? '+' : '−'}${Number(slot.points_left).toFixed(SCORE_DECIMALS)} ${ascending ? 'above best' : 'left on table'}</div>`
+      : '';
+
+    // Build top picks section
+    const tops = slot.top_picks || [];
+    let topPicksSection = '';
+    if (tops.length > 0) {
+      const yourRank = tops.findIndex(t => t.player === slot.player && t.year === slot.year);
+
+      const topRows = tops.map((t, idx) => {
+        const isYou = t.player === slot.player && t.year === slot.year;
+        return `
+          <div class="top-pick-row ${isYou ? 'is-you' : ''}">
+            <div class="top-pick-rank">${idx + 1}</div>
+            <div class="top-pick-name">${t.player}${isYou ? '<span class="top-pick-you-badge">You</span>' : ''}</div>
+            <div class="top-pick-year">${t.year}</div>
+            <div class="top-pick-val">${fmtVal(t.value)}</div>
+          </div>`;
+      }).join('');
+
+      // Show user's pick below the list if they didn't crack the top 5
+      const yourRow = yourRank === -1 ? `
+        <div class="top-pick-separator"></div>
+        <div class="top-pick-row is-you">
+          <div class="top-pick-rank">—</div>
+          <div class="top-pick-name">${slot.player}<span class="top-pick-you-badge">You</span></div>
+          <div class="top-pick-year">${slot.year}</div>
+          <div class="top-pick-val">${fmtVal(slot.stat_value)}</div>
+        </div>` : '';
+
+      topPicksSection = `
+        <div class="top-picks-section">
+          <div class="top-picks-label">Top Picks · This Slot</div>
+          <div class="top-picks-list">
+            ${topRows}
+            ${yourRow}
+          </div>
+        </div>`;
+    }
+
+    const toggleId = `toggle-${i}`;
+    const drawerId = `drawer-${i}`;
+
+    const row = document.createElement('div');
+    row.className = 'result-row';
+    row.innerHTML = `
+      <div class="row-num">${i + 1}</div>
+      <div class="row-main">
+        <div class="row-prompt">${slot.label}</div>
+        <div class="row-player">${slot.player}</div>
+        <div class="row-year">${slot.year}</div>
+        <div class="row-bars">
+          <div class="bar-wrap">
+            <div class="bar-label">Your pick</div>
+            <div class="bar-track"><div class="bar-fill yours" data-pct="${yourPct}"></div></div>
+            <div class="bar-val">${fmtVal(slot.stat_value)}</div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar-label">Best year</div>
+            <div class="bar-track"><div class="bar-fill best" data-pct="${bestPct}"></div></div>
+            <div class="bar-val">${fmtVal(slot.best_value)}</div>
+          </div>
+        </div>
+        ${topPicksSection}
+      </div>
+      <div class="row-score">
+        <div class="score-big">${fmtVal(slot.stat_value)}</div>
+        <div class="score-small">${RESULT.stat_label}</div>
+        ${leftOnTable}
+      </div>
+    `;
+    breakdown.appendChild(row);
+  });
+
+  // Animate bars in after a short delay
+  setTimeout(() => {
+    document.querySelectorAll('.bar-fill').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+  }, 400);
+</script>
+</body>
+</html>
+{% endblock %}

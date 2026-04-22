@@ -1,0 +1,17 @@
+{# templates/nfl/error.html #}
+{% extends "base.html" %}   {# swap for your actual base template #}
+
+{% block content %}
+<div style="max-width: 600px; margin: 80px auto; text-align: center; font-family: sans-serif;">
+  <h2>Something went wrong</h2>
+  <p style="color: #666; margin: 20px 0;">{{ message }}</p>
+  <a href="/nfl/" style="
+    display: inline-block;
+    padding: 10px 24px;
+    background: #2563eb;
+    color: white;
+    border-radius: 6px;
+    text-decoration: none;
+  ">Back to Game Lobby</a>
+</div>
+{% endblock %}

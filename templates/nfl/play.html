@@ -1,0 +1,895 @@
+<!-- templates/nfl/play.html -->
+{% extends "base.html" %}
+
+{% block title %}Play — NFL Draft Game{% endblock %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Play — NFL Draft Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Playfair+Display:ital@0;1&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:  #013369;
+      --green2: #001a35;
+      --cream:  #f5f5f5;
+      --gold:   #d50a0a;
+      --red:    #8b0000;
+      --felt:   #002855;
+      --dim:    rgba(245,245,245,0.5);
+      --border: rgba(213,10,10,0.3);
+    }
+
+    body {
+      background-color: var(--green2);
+      color: var(--cream);
+      font-family: 'IBM Plex Mono', monospace;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px),
+        repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      letter-spacing: 0.06em;
+      color: var(--cream);
+      text-decoration: none;
+    }
+
+    .round-stat {
+      text-align: center;
+    }
+
+    .round-stat .label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .round-stat .value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      color: var(--gold);
+      letter-spacing: 0.06em;
+      line-height: 1;
+    }
+
+    .new-game-btn {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--dim);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .new-game-btn:hover { color: var(--cream); border-color: var(--gold); }
+
+    /* ── Score tally ── */
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px 20px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .score-bar .slabel {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--dim);
+      flex-shrink: 0;
+    }
+
+    .score-pips {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .pip {
+      height: 6px;
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border-radius: 999px;
+      transition: background 0.4s;
+    }
+    .pip.filled { background: var(--gold); }
+
+    .score-total {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--cream);
+      letter-spacing: 0.05em;
+      min-width: 80px;
+      text-align: right;
+    }
+
+    .score-total span { color: var(--gold); }
+
+    /* ── Slot cards ── */
+    .slots { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+
+    .slot-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: visible;
+      transition: border-color 0.3s;
+      animation: cardIn 0.5s ease both;
+      position: relative;
+      z-index: 1;
+    }
+
+    .slot-card.dropdown-open {
+      z-index: 200;
+    }
+
+    .slot-card:nth-child(1) { animation-delay: 0.05s; }
+    .slot-card:nth-child(2) { animation-delay: 0.10s; }
+    .slot-card:nth-child(3) { animation-delay: 0.15s; }
+    .slot-card:nth-child(4) { animation-delay: 0.20s; }
+    .slot-card:nth-child(5) { animation-delay: 0.25s; }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateX(-16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .slot-card.locked { border-color: rgba(213,10,10,0.6); }
+
+    .slot-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(213,10,10,0.15);
+    }
+
+    .slot-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      color: var(--gold);
+      min-width: 28px;
+      line-height: 1;
+    }
+
+    .slot-prompt {
+      font-size: 12px;
+      color: var(--dim);
+      letter-spacing: 0.04em;
+      line-height: 1.4;
+      flex: 1;
+    }
+
+    .slot-status {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.06);
+      color: var(--dim);
+      white-space: nowrap;
+    }
+    .slot-status.done {
+      background: rgba(213,10,10,0.15);
+      color: var(--gold);
+    }
+
+    .slot-body { padding: 16px; overflow: visible; position: relative; }
+
+    /* locked reveal */
+    .pick-reveal {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .pick-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      letter-spacing: 0.04em;
+      color: var(--cream);
+      line-height: 1;
+    }
+
+    .pick-meta {
+      font-size: 11px;
+      color: var(--dim);
+      margin-top: 2px;
+    }
+
+    .pick-stat {
+      text-align: right;
+    }
+
+    .pick-stat .stat-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      color: var(--gold);
+      line-height: 1;
+      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.6); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .pick-stat .stat-lbl {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    /* input area */
+    .input-group { display: flex; flex-direction: column; gap: 10px; }
+
+    .search-wrap { position: relative; }
+
+    .search-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(213,10,10,0.3);
+      border-radius: 6px;
+      color: var(--cream);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus { border-color: var(--gold); }
+    .search-input::placeholder { color: rgba(245,245,245,0.3); }
+
+    .autocomplete-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; right: 0;
+      background: #001a2e;
+      border: 1px solid var(--gold);
+      border-radius: 6px;
+      z-index: 1000;
+      max-height: 220px;
+      overflow-y: auto;
+      display: none;
+    }
+    .autocomplete-dropdown.open { display: block; }
+
+    .ac-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      transition: background 0.15s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ac-item:last-child { border-bottom: none; }
+    .ac-item:hover, .ac-item.active { background: rgba(213,10,10,0.15); }
+    .ac-item .ac-name { color: var(--cream); }
+    .ac-item .ac-meta { font-size: 11px; color: var(--dim); }
+
+    .year-select {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(213,10,10,0.3);
+      border-radius: 6px;
+      color: var(--cream);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 14px;
+      padding: 10px 14px;
+      outline: none;
+      width: 100%;
+      display: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .year-select:focus { border-color: var(--gold); }
+    .year-select option { background: #001a2e; }
+
+    .confirm-btn {
+      background: var(--gold);
+      color: var(--green2);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.08em;
+      padding: 10px 28px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: none;
+      transition: opacity 0.2s, transform 0.15s;
+      align-self: flex-start;
+    }
+    .confirm-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .slot-error {
+      font-size: 11px;
+      color: #e07070;
+      display: none;
+      margin-top: 4px;
+    }
+
+    /* ── Submit bar ── */
+    .submit-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 20px 24px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .submit-hint {
+      font-size: 12px;
+      color: var(--dim);
+      letter-spacing: 0.04em;
+    }
+
+    .submit-btn {
+      background: var(--gold);
+      color: var(--green2);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 24px;
+      letter-spacing: 0.1em;
+      padding: 12px 48px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    }
+    .submit-btn:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 rgba(0,0,0,0.3); }
+    .submit-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Team logo in slot header ── */
+    .slot-logo {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+    }
+
+    .slot-logo-placeholder {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(213,10,10,0.15);
+      border: 1px solid rgba(213,10,10,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* ── Player headshot on locked card ── */
+    .pick-headshot {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: top center;
+      border: 2px solid rgba(213,10,10,0.5);
+      background: rgba(255,255,255,0.05);
+      flex-shrink: 0;
+    }
+
+    .pick-headshot-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .pick-headshot-wrap .team-badge {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+    }
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(245,245,245,0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner.hidden { display: none; }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(213,10,10,0.3); border-radius: 3px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <a href="/nfl/" class="logo">🏈 Draft Game</a>
+    <div class="round-stat">
+      <div class="label">Stat Category</div>
+      <div class="value" id="stat-label">{{ state.stat_label }}</div>
+    </div>
+    <a href="/nfl/new" class="new-game-btn">New Game</a>
+  </header>
+
+  <div class="score-bar">
+    <div class="slabel">Progress</div>
+    <div class="score-pips" id="score-pips">
+      <div class="pip" data-pip="0"></div>
+      <div class="pip" data-pip="1"></div>
+      <div class="pip" data-pip="2"></div>
+      <div class="pip" data-pip="3"></div>
+      <div class="pip" data-pip="4"></div>
+    </div>
+    <div class="score-total">TOTAL: <span id="running-total">—</span></div>
+  </div>
+
+  <div class="slots" id="slots-container"></div>
+
+  <div class="submit-bar">
+    <div class="submit-hint" id="submit-hint">Fill all 5 slots to submit.</div>
+    <button class="submit-btn" id="submit-btn" disabled>
+      Submit Picks <span class="spinner hidden" id="submit-spinner"></span>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // ── State from server ──────────────────────────────────────────────────
+  const GAME_STATE = {{ state | tojson }};
+  const STAT_KEY   = GAME_STATE.stat_key;
+  const STAT_LABEL = GAME_STATE.stat_label;
+  const PROMPTS    = GAME_STATE.prompts;
+
+  // Track picks in JS: { slotIndex: { player, year, statValue } }
+  const picks = {};
+  let runningTotal = null; // null = not yet started
+
+  // ── Build slot cards ───────────────────────────────────────────────────
+  const container = document.getElementById('slots-container');
+
+  PROMPTS.forEach((prompt, i) => {
+    const card = document.createElement('div');
+    card.className = 'slot-card';
+    card.id = `slot-${i}`;
+    card.innerHTML = `
+      <div class="slot-header">
+        <div class="slot-num">${i + 1}</div>
+        <div id="slot-logo-${i}" class="slot-logo-placeholder">🏈</div>
+        <div class="slot-prompt">${prompt.label}</div>
+        <div class="slot-status" id="status-${i}">Empty</div>
+      </div>
+      <div class="slot-body">
+        <div class="input-group" id="inputs-${i}">
+          <div class="search-wrap">
+            <input
+              class="search-input"
+              id="search-${i}"
+              type="text"
+              placeholder="Search for a player…"
+              autocomplete="off"
+            />
+            <div class="autocomplete-dropdown" id="dropdown-${i}"></div>
+          </div>
+          <select class="year-select" id="year-${i}">
+            <option value="">Select a year…</option>
+          </select>
+          <button class="confirm-btn" id="confirm-${i}" disabled>Lock In Pick</button>
+          <div class="slot-error" id="error-${i}"></div>
+        </div>
+        <div class="pick-reveal" id="reveal-${i}" style="display:none"></div>
+      </div>
+    `;
+    container.appendChild(card);
+
+    // Load team logo for this prompt
+    loadSlotLogo(i, prompt);
+
+    initSlot(i);
+  });
+
+  // ── Slot logic ─────────────────────────────────────────────────────────
+  function initSlot(i) {
+    const searchEl   = document.getElementById(`search-${i}`);
+    const dropdownEl = document.getElementById(`dropdown-${i}`);
+    const yearEl     = document.getElementById(`year-${i}`);
+    const confirmEl  = document.getElementById(`confirm-${i}`);
+    const errorEl    = document.getElementById(`error-${i}`);
+
+    let selectedPlayer = null;
+    let debounceTimer  = null;
+    let activeIndex    = -1;
+
+    // Search input — debounced autocomplete
+    searchEl.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      selectedPlayer = null;
+      yearEl.style.display = 'none';
+      confirmEl.style.display = 'none';
+      yearEl.innerHTML = '<option value="">Select a year…</option>';
+      errorEl.style.display = 'none';
+
+      const q = searchEl.value.trim();
+      if (q.length < 2) { closeDropdown(); return; }
+
+      debounceTimer = setTimeout(() => fetchSearch(q, i), 280);
+    });
+
+    // Keyboard navigation in dropdown
+    searchEl.addEventListener('keydown', (e) => {
+      const items = dropdownEl.querySelectorAll('.ac-item');
+      if (!items.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIndex = Math.min(activeIndex + 1, items.length - 1);
+        highlightItem(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIndex = Math.max(activeIndex - 1, 0);
+        highlightItem(items);
+      } else if (e.key === 'Enter' && activeIndex >= 0) {
+        e.preventDefault();
+        items[activeIndex].click();
+      } else if (e.key === 'Escape') {
+        closeDropdown();
+      }
+    });
+
+    function highlightItem(items) {
+      items.forEach((el, idx) => el.classList.toggle('active', idx === activeIndex));
+    }
+
+    function closeDropdown() {
+      dropdownEl.classList.remove('open');
+      dropdownEl.innerHTML = '';
+      activeIndex = -1;
+      document.getElementById(`slot-${i}`).classList.remove('dropdown-open');
+    }
+
+    async function fetchSearch(query, slotIdx) {
+      try {
+        const res  = await fetch('/nfl/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, slot: slotIdx }),
+        });
+        const data = await res.json();
+        renderDropdown(data.results || []);
+      } catch { /* silent fail */ }
+    }
+
+    function renderDropdown(results) {
+      dropdownEl.innerHTML = '';
+      activeIndex = -1;
+      if (!results.length) {
+        dropdownEl.innerHTML = '<div class="ac-item"><span class="ac-meta">No players found</span></div>';
+        dropdownEl.classList.add('open');
+        document.getElementById(`slot-${i}`).classList.add('dropdown-open');
+        return;
+      }
+      results.forEach(r => {
+        const el = document.createElement('div');
+        el.className = 'ac-item';
+        el.innerHTML = `<span class="ac-name">${r.name}</span><span class="ac-meta">${r.matching_seasons} season${r.matching_seasons !== 1 ? 's' : ''}</span>`;
+        // Use mousedown instead of click so it fires before the input's blur event
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault(); // prevents input blur which would close dropdown first
+          e.stopPropagation(); // prevents click reaching cards underneath
+          selectPlayer(r.name);
+        });
+        dropdownEl.appendChild(el);
+      });
+      dropdownEl.classList.add('open');
+      document.getElementById(`slot-${i}`).classList.add('dropdown-open');
+    }
+
+    async function selectPlayer(name) {
+      selectedPlayer = name;
+      searchEl.value = name;
+      closeDropdown();
+      errorEl.style.display = 'none';
+
+      try {
+        const res  = await fetch('/nfl/api/years', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player: name, slot: i }),
+        });
+        const data = await res.json();
+        if (data.years && data.years.length) {
+          yearEl.innerHTML = '<option value="">Select a year…</option>' +
+            data.years.map(y => `<option value="${y}">${y}</option>`).join('');
+          yearEl.style.display = 'block';
+          confirmEl.style.display = 'block';
+          confirmEl.disabled = true;
+        } else {
+          showError(i, data.warning || 'No qualifying years found.');
+        }
+      } catch {
+        showError(i, 'Failed to load years. Try again.');
+      }
+    }
+
+    // Year selection enables confirm button
+    yearEl.addEventListener('change', () => {
+      confirmEl.disabled = !yearEl.value;
+    });
+
+    // Lock in pick
+    confirmEl.addEventListener('click', async () => {
+      if (!selectedPlayer || !yearEl.value) return;
+      confirmEl.disabled = true;
+      confirmEl.textContent = 'Locking in…';
+
+      try {
+        const res  = await fetch('/nfl/api/pick', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slot:   i,
+            player: selectedPlayer,
+            year:   parseInt(yearEl.value),
+          }),
+        });
+        const data = await res.json();
+
+        if (data.error) {
+          showError(i, data.error);
+          confirmEl.disabled = false;
+          confirmEl.textContent = 'Lock In Pick';
+          return;
+        }
+
+        if (!data.pick.valid) {
+          showError(i, data.pick.error || 'Invalid pick.');
+          confirmEl.disabled = false;
+          confirmEl.textContent = 'Lock In Pick';
+          return;
+        }
+
+        lockSlot(i, data.pick);
+        if (data.all_filled) enableSubmit();
+
+      } catch {
+        showError(i, 'Something went wrong. Try again.');
+        confirmEl.disabled = false;
+        confirmEl.textContent = 'Lock In Pick';
+      }
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (!searchEl.contains(e.target) && !dropdownEl.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Prevent any click/mousedown inside the dropdown from reaching elements below
+    dropdownEl.addEventListener('mousedown', (e) => e.stopPropagation());
+    dropdownEl.addEventListener('click',     (e) => e.stopPropagation());
+  }
+
+  // ── Load team/division logo into slot header ──────────────────────
+  async function loadSlotLogo(slotIdx, prompt) {
+    const logoEl = document.getElementById(`slot-logo-${slotIdx}`);
+    if (!logoEl) return;
+
+    if (prompt.type === 'team' && prompt.team) {
+      try {
+        const res  = await fetch(`/nfl/api/team-logo?team=${prompt.team}`);
+        const data = await res.json();
+        if (data.url) {
+          const img = document.createElement('img');
+          img.id        = `slot-logo-${slotIdx}`;
+          img.className = 'slot-logo';
+          img.src       = data.url;
+          img.alt       = prompt.team;
+          img.onerror   = () => img.style.display = 'none';
+          logoEl.replaceWith(img);
+        }
+      } catch { /* keep placeholder */ }
+      return;
+    }
+
+    if (prompt.type === 'division' && prompt.division) {
+      const divisionTeams = {
+        "AFC East":  ["BUF","MIA","NE","NYJ"],
+        "AFC North": ["BAL","CIN","CLE","PIT"],
+        "AFC South": ["HOU","IND","JAX","TEN"],
+        "AFC West":  ["DEN","KC","LV","LAC"],
+        "NFC East":  ["DAL","NYG","PHI","WAS"],
+        "NFC North": ["CHI","DET","GB","MIN"],
+        "NFC South": ["ATL","CAR","NO","TB"],
+        "NFC West":  ["ARI","LA","SF","SEA"],
+      };
+      // ESPN CDN slug overrides for quirky abbreviations.
+      const ESPN_SLUG = { LA:"lar", WAS:"wsh" };
+      const teams = (divisionTeams[prompt.division] || []).slice(0, 5);
+      const wrap  = document.createElement('div');
+      wrap.id = `slot-logo-${slotIdx}`;
+      wrap.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
+      teams.forEach((team, ti) => {
+        const slug = ESPN_SLUG[team] || team.toLowerCase();
+        const img = document.createElement('img');
+        img.src           = `https://a.espncdn.com/i/teamlogos/nfl/500/${slug}.png`;
+        img.alt           = team;
+        img.style.cssText = `width:24px;height:24px;object-fit:contain;margin-left:${ti > 0 ? '-6px' : '0'};filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));`;
+        img.onerror       = () => img.remove();
+        wrap.appendChild(img);
+      });
+      logoEl.replaceWith(wrap);
+    }
+  }
+
+  // ── Lock a slot and show the stat reveal ──────────────────────────────
+  function lockSlot(i, pick) {
+    const card    = document.getElementById(`slot-${i}`);
+    const inputs  = document.getElementById(`inputs-${i}`);
+    const reveal  = document.getElementById(`reveal-${i}`);
+    const status  = document.getElementById(`status-${i}`);
+    const pip     = document.querySelector(`[data-pip="${i}"]`);
+
+    const statVal = pick.stat_value !== null ? pick.stat_value : '—';
+
+    reveal.innerHTML = `
+      <div class="pick-headshot-wrap" id="headshot-wrap-${i}">
+        <div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.06);border:2px solid rgba(213,10,10,0.3);display:flex;align-items:center;justify-content:center;font-size:28px;">🏈</div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div class="pick-name">${pick.player}</div>
+        <div class="pick-meta">${pick.year} · ${PROMPTS[i].label.replace('A player who played ', '')}</div>
+      </div>
+      <div class="pick-stat">
+        <div class="stat-val">${statVal}</div>
+        <div class="stat-lbl">${STAT_LABEL}</div>
+      </div>
+    `;
+
+    inputs.style.display = 'none';
+    reveal.style.display = 'flex';
+    card.classList.add('locked');
+    status.textContent = 'Locked';
+    status.classList.add('done');
+    pip.classList.add('filled');
+
+    picks[i] = { player: pick.player, year: pick.year, statValue: pick.stat_value || 0 };
+    updateTotal();
+
+    // Async: load headshot and team badge
+    fetchAndShowHeadshot(i, pick.player, PROMPTS[i].team || null);
+  }
+
+  async function fetchAndShowHeadshot(slotIdx, playerName, team) {
+    const wrap = document.getElementById(`headshot-wrap-${slotIdx}`);
+    if (!wrap) return;
+    try {
+      const [imgRes, logoRes] = await Promise.all([
+        fetch(`/nfl/api/player-image?name=${encodeURIComponent(playerName)}`),
+        team ? fetch(`/nfl/api/team-logo?team=${team}`) : Promise.resolve(null),
+      ]);
+      const imgData  = await imgRes.json();
+      const logoData = logoRes ? await logoRes.json() : null;
+      if (imgData.url) {
+        const badgeHtml = logoData?.url
+          ? `<img class="team-badge" src="${logoData.url}" alt="${team}" onerror="this.remove()"/>`
+          : '';
+        wrap.innerHTML = `
+          <img class="pick-headshot" src="${imgData.url}" alt="${playerName}" onerror="this.style.display='none'"/>
+          ${badgeHtml}
+        `;
+      }
+    } catch { /* keep 🏈 placeholder */ }
+  }
+
+  function updateTotal() {
+    const values = Object.values(picks).map(p => p.statValue);
+    if (!values.length) return;
+    const total = values.reduce((a, b) => a + b, 0);
+    const display = Number.isInteger(total) ? total : total.toFixed(1);
+    document.getElementById('running-total').textContent = display;
+  }
+
+  function showError(i, msg) {
+    const el = document.getElementById(`error-${i}`);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────
+  function enableSubmit() {
+    const btn  = document.getElementById('submit-btn');
+    const hint = document.getElementById('submit-hint');
+    btn.disabled = false;
+    hint.textContent = 'All slots filled — ready to submit!';
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const btn     = document.getElementById('submit-btn');
+    const spinner = document.getElementById('submit-spinner');
+    btn.disabled  = true;
+    spinner.classList.remove('hidden');
+
+    try {
+      const res  = await fetch('/nfl/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+        btn.disabled = false;
+        spinner.classList.add('hidden');
+        return;
+      }
+      window.location.href = '/nfl/results';
+    } catch {
+      alert('Something went wrong submitting. Please try again.');
+      btn.disabled = false;
+      spinner.classList.add('hidden');
+    }
+  });
+</script>
+</body>
+</html>
+{% endblock %}

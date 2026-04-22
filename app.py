@@ -36,6 +36,16 @@ from multiplayer_routes import mp_bp, register_socketio_events
 app.register_blueprint(mp_bp)
 register_socketio_events(socketio)   # wire up the SocketIO event handlers
 
+# NFL Draft Game — single-player blueprint + multiplayer blueprint.
+# Uses the same SocketIO instance but with nfl_*-prefixed event names so
+# the MLB and NFL multiplayer lobbies can coexist on one server.
+from nfl_game_routes import nfl_game_bp
+app.register_blueprint(nfl_game_bp)
+
+from nfl_multiplayer_routes import nfl_mp_bp, register_nfl_socketio_events
+app.register_blueprint(nfl_mp_bp)
+register_nfl_socketio_events(socketio)
+
 # Generate 1 randomized run for 6-12 players
 def generate_run(num_players: int = 8, names=None):
     num_players = max(6, min(12, int(num_players)))

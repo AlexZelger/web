@@ -100,6 +100,10 @@ def draftorder():
 def about():
     return render_template("about.html")
 
+@app.route("/wolves")
+def wolves():
+    return render_template("wolves.html")
+
 
 # GET:  /api/simulate?num_players=8&name=Alex&name=Barry
 # POST: JSON {"num_players": 8, "names": ["Alex","Barry",...]}

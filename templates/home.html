@@ -16,7 +16,36 @@
     gap: 60px;
     align-items: center;
   }
-
+  .card-visual {
+    background: var(--accent);
+    border-radius: 8px;
+    aspect-ratio: 16/9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-visual.wolves {
+    background: #0f1117;
+    background-image:
+      linear-gradient(135deg, #14202b 0%, #0a0f17 100%);
+    box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.12);
+  }
+  .card-visual.wolves::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(134, 239, 172, 0.03) 2px, rgba(134, 239, 172, 0.03) 4px), repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(134, 239, 172, 0.03) 2px, rgba(134, 239, 172, 0.03) 4px);
+  }
+  .card-visual.wolves::after {
+    content: '🐺';
+    font-size: 80px;
+    opacity: 0.12;
+    position: absolute;
+    bottom: -10px;
+    right: 20px;
+  }
   .hero-eyebrow {
     display: flex;
     align-items: center;
@@ -222,7 +251,7 @@
     font-family: 'Syne', sans-serif;
     font-weight: 800;
     font-size: 80px;
-    color: var(--gold);
+    color: #86efac;
     line-height: 1;
     letter-spacing: -0.02em;
   }
@@ -328,54 +357,34 @@
         <a href="mailto:AlexTZelger@gmail.com" class="btn-secondary">Get In Touch</a>
       </div>
     </div>
-
-    <div class="hero-right">
-      <div class="stat-block">
-        <div class="stat-number">1990<span>–</span>2025</div>
-        <div class="stat-desc">Years of MLB data in the baseball draft</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-number">5</div>
-        <div class="stat-desc">Stat categories: HR, RBI, AVG, ERA, WAR</div>
-      </div>
-      <div class="stat-block">
-        <div class="stat-number">30<span>+</span></div>
-        <div class="stat-desc">MLB teams across 6 divisions</div>
-      </div>
-    </div>
   </section>
 
   <!-- Featured Project -->
   <section class="featured-section">
     <div class="section-eyebrow">Featured Project</div>
     <div class="featured-card">
-      <div class="featured-visual">
+      <div class="card-visual wolves">
         <div class="featured-visual-inner">
-          <div class="fv-stat">HR</div>
-          <div class="fv-label">Pick your best lineup</div>
+          <div class="fv-stat">Machine Learning</div>
+          <div class="fv-label">Evolution by natural selection</div>
         </div>
       </div>
       <div class="featured-content">
         <div class="featured-tags">
-          <span class="tag highlight">Game</span>
-          <span class="tag">Python</span>
-          <span class="tag">Flask</span>
-          <span class="tag">Baseball</span>
+          <span class="tag highlight">Featured</span>
+          <span class="tag">Machine Learning</span>
+          <span class="tag">Genetic Algorithm</span>
+          <span class="tag">Simulation</span>
         </div>
-        <h2 class="featured-title">Baseball Draft Game</h2>
+        <h2 class="featured-title">Wolf Pack Evolution Simulator</h2>
         <p class="featured-desc">
-          A stat-based knowledge game built on 35 years of MLB data.
-          Pick players across 5 randomized slots — by team, division, or era —
-          then choose the year you think they peaked. Highest total wins.
+          A machine learning genetic algorithm where wolves learn to hunt entirely through natural selection no hunting rules are hardcoded.
+            Each wolf has a six gene genome biasing its movement toward prey, packmates, or away from the bear.
+            The top performers each generation pass on mutated copies of their genes.
+            Pack hunting emerges on its own once cooperation proves more rewarding than going solo.
         </p>
-        <a href="/game/" class="btn-primary">
-          Singleplayer
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </a>
-          <a href="/mp/" class="btn-primary">
-          Multiplayer
+        <a href="/wolves/" class="btn-primary">
+          Run Simulation
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>

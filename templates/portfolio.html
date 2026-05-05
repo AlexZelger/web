@@ -120,6 +120,28 @@
   .card-visual.football .visual-stat  { color: #d50a0a; }
   .card-visual.football .visual-label { color: rgba(176, 183, 195, 0.85); }
 
+  /* Wolves: deep forest green field, moonlight headline, frost sub-label */
+  .card-visual.wolves {
+    background: #0f1117;
+    background-image:
+      linear-gradient(135deg, #14202b 0%, #0a0f17 100%);
+    box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.12);
+  }
+  .card-visual.wolves::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(134,239,172,0.03) 2px, rgba(134,239,172,0.03) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(134,239,172,0.03) 2px, rgba(134,239,172,0.03) 4px);
+  }
+  .card-visual.wolves::after {
+    content: '🐺'; font-size: 80px; opacity: 0.12;
+    position: absolute; bottom: -10px; right: 20px;
+  }
+  .card-visual.wolves .visual-stat  { color: #86efac; }
+  .card-visual.wolves .visual-label { color: rgba(226, 232, 240, 0.55); }
+
   .card-visual.placeholder { background: var(--rule); }
   .card-visual.placeholder::after { content: attr(data-emoji); font-size: 64px; opacity: 0.3; }
 
@@ -204,10 +226,57 @@
 
   <div class="section-bar">
     <span class="section-bar-label">All Projects</span>
-    <span class="section-bar-count">3 projects</span>
+    <span class="section-bar-count">4 projects</span>
   </div>
 
   <div class="projects">
+    <div class="card-featured">
+      <div class="card-visual wolves">
+        <div class="visual-inner">
+          <div class="visual-stat">Machine Learning</div>
+          <div class="visual-label">Evolution by natural selection</div>
+        </div>
+      </div>
+      <div class="card-content">
+        <div class="card-tags">
+            <span class="tag highlight">Featured</span>
+          <span class="tag">Machine Learning</span>
+          <span class="tag">Genetic Algorithm</span>
+          <span class="tag">Simulation</span>
+        </div>
+        <h2 class="card-title">Wolf Pack<br/>Evolution Simulator</h2>
+        <p class="card-desc">
+          A machine learning genetic algorithm where wolves learn to hunt entirely through
+          natural selection no hunting rules are hardcoded. Each wolf has
+          a six gene genome biasing its movement toward prey, packmates, or
+          away from the bear. The top performers each generation pass on
+          mutated copies of their genes. Pack hunting emerges on its own
+          once cooperation proves more rewarding than going solo.
+        </p>
+        <div class="card-meta">
+          <div class="meta-item">
+            <span class="meta-label">Stack</span>
+            <span class="meta-value">JS · HTML Canvas</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Genes</span>
+            <span class="meta-value">Attraction · Repulsion · Speed · Perception</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Watch for</span>
+            <span class="meta-value">Pack hunting emerging</span>
+          </div>
+        </div>
+        <a href="/wolves" class="card-link">
+          Run Simulation
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+
     <div class="card-featured">
       <div class="card-visual baseball">
         <div class="visual-inner">
@@ -217,7 +286,6 @@
       </div>
       <div class="card-content">
         <div class="card-tags">
-          <span class="tag highlight">Featured</span>
           <span class="tag">Python</span>
           <span class="tag">Flask</span>
           <span class="tag">Baseball</span>
@@ -346,6 +414,7 @@
         </a>
       </div>
     </div>
+      </div>
 
     <!--
     ADD MORE PROJECTS — copy a .card-small block, wrap in .cards-grid

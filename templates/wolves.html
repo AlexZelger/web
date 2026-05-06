@@ -1,0 +1,98 @@
+<!-- templates/wolves.html -->
+{% extends "base.html" %}
+
+{% block title %}Wolf Pack Evolution — Alex Zelger{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='wolves/style.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="wolfsim">
+  <header class="sim-header">
+    <h1>Wolf Pack Evolution</h1>
+    <p class="subtitle">A genetic algorithm simulation — wolves learn to hunt through natural selection</p>
+  </header>
+
+  <div id="wrap">
+    <div class="canvas-col">
+      <canvas id="c" width="600" height="500"></canvas>
+      <div class="legend">
+        <div class="leg-item"><span class="dot wolf"></span>Wolf</div>
+        <div class="leg-item"><span class="dot rabbit"></span>Rabbit</div>
+        <div class="leg-item"><span class="dot deer"></span>Deer</div>
+        <div class="leg-item"><span class="dot bear"></span>Bear</div>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <div class="card">
+        <div class="card-title">Simulation</div>
+        <div class="big-num" id="gn">1</div>
+        <div class="sub">Generation</div>
+        <div class="stat-row"><span class="stat-label">Tick</span><span class="stat-val" id="tk">0</span></div>
+        <div class="stat-row"><span class="stat-label">Wolves alive</span><span class="stat-val" id="aw">0</span></div>
+        <div class="stat-row"><span class="stat-label">Total food eaten</span><span class="stat-val" id="fe">0</span></div>
+        <div class="stat-row"><span class="stat-label">Deer kills</span><span class="stat-val" id="dk">0</span></div>
+        <div class="stat-row"><span class="stat-label">Bear kills</span><span class="stat-val" id="bk">0</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Avg genes (alive wolves)</div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Wolf attraction</span><span id="ga">-</span></div>
+          <div class="gene-bg"><div class="gene-fill wolf-fill" id="ba"></div></div>
+        </div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Deer attraction</span><span id="gd">-</span></div>
+          <div class="gene-bg"><div class="gene-fill deer-fill" id="bd"></div></div>
+        </div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Rabbit attraction</span><span id="gr">-</span></div>
+          <div class="gene-bg"><div class="gene-fill rabbit-fill" id="br"></div></div>
+        </div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Bear repulsion</span><span id="gb2">-</span></div>
+          <div class="gene-bg"><div class="gene-fill bear-fill" id="bb"></div></div>
+        </div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Speed</span><span id="gs">-</span></div>
+          <div class="gene-bg"><div class="gene-fill speed-fill" id="bspd"></div></div>
+        </div>
+        <div class="gene-row">
+          <div class="gene-label-row"><span>Perception</span><span id="gp">-</span></div>
+          <div class="gene-bg"><div class="gene-fill perc-fill" id="bprc"></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Best wolf this gen</div>
+        <div class="big-num" id="bf">-</div>
+        <div class="sub">food collected</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Controls</div>
+        <div class="btn-row">
+          <button id="btnp">Pause</button>
+          <button id="btnn">Skip gen</button>
+          <button id="btnr">Reset</button>
+        </div>
+        <div class="slider-row">
+          <div class="gene-label-row"><span>Sim speed</span><span id="spdlbl">3x</span></div>
+          <input type="range" min="1" max="15" value="3" step="1" id="spdrange" />
+        </div>
+      </div>
+
+      <div class="card log-card">
+        <div class="card-title">Generation log</div>
+        <div id="log"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='wolves/sim.js') }}"></script>
+{% endblock %}

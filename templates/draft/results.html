@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Order — Results{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  .res-wrap {
+    --chalk: #f5f7f2; --gold: #f2c14e; --ink: #0c2415;
+    max-width: 640px; margin: 0 auto; padding: 36px 18px 80px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .res-wrap h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: clamp(36px, 8vw, 60px);
+    letter-spacing: 0.04em; color: var(--ink); line-height: 1; margin-bottom: 4px;
+  }
+  .res-wrap .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .pending {
+    background: #fff6e0; border: 1px solid #f2c14e; border-radius: 10px;
+    padding: 14px 16px; color: #6b5310; font-size: 13px; margin-bottom: 22px;
+  }
+  .board {
+    list-style: none; display: flex; flex-direction: column; gap: 8px;
+    background: linear-gradient(160deg, #1c6b34, #145026);
+    border: 2px solid rgba(255,255,255,0.15); border-radius: 14px;
+    padding: 18px; box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+  }
+  .board li {
+    display: grid; grid-template-columns: 44px 18px 1fr auto; align-items: center; gap: 12px;
+    background: rgba(0,0,0,0.24); border-radius: 8px; padding: 11px 14px; color: var(--chalk);
+  }
+  .board li.top .pick { color: var(--gold); }
+  .pick { font-family: 'Bebas Neue', sans-serif; font-size: 26px; text-align: center; color: #cfe6d6; }
+  .sw { width: 16px; height: 16px; border-radius: 5px; }
+  .nm { font-size: 15px; }
+  .badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+  .actions { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.07em;
+    padding: 11px 26px; border-radius: 8px; text-decoration: none; display: inline-block;
+    cursor: pointer; border: none;
+  }
+  .btn-go { background: var(--gold); color: var(--ink); }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid #cfc8b8; }
+  .copy-row { margin-top: 14px; display: flex; gap: 6px; }
+  .copy-row input {
+    flex: 1; min-width: 0; font-size: 12px; padding: 9px 10px; border-radius: 6px;
+    border: 1px solid #cfc8b8; font-family: 'IBM Plex Mono', monospace;
+  }
+  .copy-row button { background: var(--ink); color: var(--chalk); border: none; border-radius: 6px; padding: 0 14px; cursor: pointer; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="res-wrap">
+  <h1>Draft Order</h1>
+  <p class="sub">Race #{{ run_id }}</p>
+
+  {% if not finished %}
+  <div class="pending">
+    This race hasn't finished yet — the order below is the projected result.
+    <a href="/draft/watch/{{ run_id }}">Watch it live →</a>
+  </div>
+  {% endif %}
+
+  <ol class="board">
+    {% for r in order %}
+    <li class="{{ 'top' if loop.index == 1 }}">
+      <span class="pick">{{ loop.index }}</span>
+      <span class="sw" style="background: {{ r.color }}"></span>
+      <span class="nm">{{ r.name }}</span>
+      {% if loop.index == 1 %}<span class="badge">1st Pick</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+
+  <div class="copy-row">
+    <input id="thisLink" readonly/>
+    <button id="copyBtn">Copy</button>
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-go" href="/draft/watch/{{ run_id }}">Watch the Race</a>
+    <a class="btn btn-ghost" href="/draft/">New Race</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const link = document.getElementById('thisLink');
+  link.value = window.location.href;
+  document.getElementById('copyBtn').onclick = async () => {
+    try { await navigator.clipboard.writeText(link.value); }
+    catch { link.select(); document.execCommand('copy'); }
+    const b = document.getElementById('copyBtn');
+    b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1400);
+  };
+</script>
+{% endblock %}

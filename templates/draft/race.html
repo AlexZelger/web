@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Race — Draft Order Randomizer{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  .race-wrap {
+    --chalk: #f5f7f2;
+    --gold:  #f2c14e;
+    --ink:   #0c2415;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 16px 80px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .race-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .race-head h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(30px, 6vw, 52px); letter-spacing: 0.04em; line-height: 1;
+  }
+  .role-pill {
+    font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+    padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--rule); color: var(--muted);
+  }
+
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .btn {
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.07em;
+    padding: 11px 26px; border: none; border-radius: 8px; cursor: pointer;
+    text-decoration: none; display: inline-block; color: var(--ink);
+  }
+  .btn-go    { background: var(--gold); box-shadow: 0 4px 0 #b98f2c; }
+  .btn-go:active { transform: translateY(2px); box-shadow: 0 2px 0 #b98f2c; }
+  .btn-go:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: 0 4px 0 #b98f2c; }
+  .btn-ghost { background: #16341f; color: var(--chalk); border: 1px solid rgba(255,255,255,0.25); }
+  .status-line { font-size: 13px; color: var(--muted); }
+
+  .field-shell {
+    background: #0c2415; border-radius: 14px; padding: 10px;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22); overflow-x: auto;
+  }
+  #field { display: block; width: 100%; height: auto; border-radius: 8px; }
+
+  .share {
+    margin-top: 18px; display: grid; gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+  .share-card {
+    background: #14301d; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px; padding: 12px 14px; color: var(--chalk);
+  }
+  .share-card .lbl {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 7px;
+  }
+  .share-row { display: flex; gap: 6px; }
+  .share-row input {
+    flex: 1; min-width: 0; font-size: 12px; padding: 8px 9px;
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 6px; color: var(--chalk); font-family: 'IBM Plex Mono', monospace;
+  }
+  .copy-btn {
+    background: var(--gold); color: var(--ink); border: none; border-radius: 6px;
+    padding: 0 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+
+  .podium {
+    margin-top: 22px; display: none;
+    background: #14301d; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: 18px 18px;
+  }
+  .podium.show { display: block; animation: pop 0.4s ease both; }
+  @keyframes pop { from { opacity: 0; transform: translateY(10px);} to { opacity:1; transform:none;} }
+  .podium h2 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 0.06em;
+    color: var(--gold); margin-bottom: 12px;
+  }
+  .order-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .order-row {
+    display: grid; grid-template-columns: 34px 16px 1fr; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 7px; background: rgba(0,0,0,0.22); color: var(--chalk);
+  }
+  .order-row .pk {
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--gold); text-align: center;
+  }
+  .order-row .sw { width: 14px; height: 14px; border-radius: 4px; }
+  .order-row .nm { font-size: 14px; }
+  .podium .after { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="race-wrap">
+  <div class="race-head">
+    <h1>🏈 Draft Race</h1>
+    <span class="role-pill">{{ 'Host' if is_host else 'Spectator' }}</span>
+  </div>
+
+  <div class="controls">
+    {% if is_host %}
+    <button class="btn btn-go" id="runBtn">Run Race</button>
+    {% endif %}
+    <span class="status-line" id="statusLine">Loading…</span>
+  </div>
+
+  <div class="field-shell">
+    <canvas id="field" width="1000" height="360" aria-label="Football field race"></canvas>
+  </div>
+
+  <div class="share">
+    <div class="share-card">
+      <div class="lbl">Watch link — send to spectators</div>
+      <div class="share-row">
+        <input id="watchLink" readonly/>
+        <button class="copy-btn" data-target="watchLink">Copy</button>
+      </div>
+    </div>
+    <div class="share-card">
+      <div class="lbl">Results link — final draft order</div>
+      <div class="share-row">
+        <input id="resultsLink" readonly/>
+        <button class="copy-btn" data-target="resultsLink">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="podium" id="podium">
+    <h2>Draft Order</h2>
+    <ol class="order-list" id="orderList"></ol>
+    <div class="after">
+      <a class="btn btn-ghost" id="replayBtn" href="#">Replay</a>
+      <a class="btn btn-ghost" href="/draft/">New Race</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  window.DRAFT = {
+    run: {{ run | tojson }},
+    isHost: {{ 'true' if is_host else 'false' }},
+    serverTime: {{ server_time }},
+  };
+</script>
+<script src="{{ url_for('static', filename='draft/field.js') }}"></script>
+{% endblock %}

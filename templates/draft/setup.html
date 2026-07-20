@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Draft Order Randomizer — Alex Zelger{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  .draft-wrap {
+    --turf:   #1c6b34;
+    --turf2:  #175c2c;
+    --chalk:  #f5f7f2;
+    --gold:   #f2c14e;
+    --ink:    #0c2415;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    color: var(--chalk);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .draft-wrap h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(40px, 8vw, 72px);
+    letter-spacing: 0.04em;
+    line-height: 0.95;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .draft-wrap .sub { color: #4a5a50; margin-bottom: 28px; font-size: 14px; }
+
+  .panel {
+    background: linear-gradient(160deg, var(--turf), var(--turf2));
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    padding: 26px 24px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    /* yard-line texture */
+    content: '';
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(90deg,
+      transparent, transparent 58px,
+      rgba(255,255,255,0.10) 58px, rgba(255,255,255,0.10) 60px);
+    pointer-events: none;
+  }
+  .panel > * { position: relative; z-index: 1; }
+
+  .count-row {
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap; margin-bottom: 22px;
+  }
+  .count-row label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 0.08em;
+  }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 40px; height: 40px; border-radius: 8px;
+    border: none; background: var(--gold); color: var(--ink);
+    font-size: 24px; font-weight: 700; cursor: pointer; line-height: 1;
+  }
+  .stepper button:active { transform: translateY(1px); }
+  .count-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 40px; min-width: 64px; text-align: center; color: var(--gold);
+  }
+  #countRange { flex: 1; min-width: 180px; accent-color: var(--gold); }
+
+  .names-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .name-cell { display: flex; align-items: center; gap: 8px; }
+  .name-cell .idx {
+    width: 26px; text-align: right;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px;
+    color: var(--gold); flex-shrink: 0;
+  }
+  .name-cell input {
+    flex: 1; min-width: 0;
+    background: rgba(0,0,0,0.28);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 7px; padding: 9px 11px;
+    color: var(--chalk); font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+  }
+  .name-cell input:focus { outline: 2px solid var(--gold); border-color: transparent; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 0.08em;
+    padding: 13px 34px; border: none; border-radius: 8px;
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .btn-go   { background: var(--gold); color: var(--ink); box-shadow: 0 4px 0 #b98f2c; }
+  .btn-go:active { transform: translateY(2px); box-shadow: 0 2px 0 #b98f2c; }
+  .btn-ghost {
+    background: transparent; color: var(--chalk);
+    border: 1px solid rgba(255,255,255,0.4);
+  }
+  #err { color: #ffd7d7; margin-top: 12px; min-height: 18px; font-size: 13px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="draft-wrap">
+  <h1>Draft Order<br/>Randomizer</h1>
+  <p class="sub">Line 'em up, run the race — whoever crosses the goal line first drafts first.</p>
+
+  <div class="panel">
+    <div class="count-row">
+      <label for="countRange">Players</label>
+      <div class="stepper">
+        <button type="button" id="minus" aria-label="Fewer players">−</button>
+        <span class="count-val" id="countVal">8</span>
+        <button type="button" id="plus" aria-label="More players">+</button>
+      </div>
+      <input type="range" id="countRange"
+             min="{{ min_players }}" max="{{ max_players }}" value="8"/>
+    </div>
+
+    <div class="names-grid" id="namesGrid"></div>
+
+    <div class="actions">
+      <button type="button" class="btn btn-ghost" id="fillBtn">Auto-fill blanks</button>
+      <button type="button" class="btn btn-go" id="createBtn">Create Race →</button>
+    </div>
+    <div id="err" role="alert"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const MIN = {{ min_players }}, MAX = {{ max_players }};
+  const grid    = document.getElementById('namesGrid');
+  const range   = document.getElementById('countRange');
+  const countEl = document.getElementById('countVal');
+  const errEl   = document.getElementById('err');
+
+  let names = [];   // preserve typed names across count changes
+
+  function renderNames(count) {
+    // capture current values first
+    grid.querySelectorAll('input').forEach((inp, i) => { names[i] = inp.value; });
+    grid.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'name-cell';
+      cell.innerHTML =
+        `<span class="idx">${i + 1}</span>` +
+        `<input type="text" maxlength="24" placeholder="Player ${i + 1}" value="${(names[i] || '').replace(/"/g, '&quot;')}"/>`;
+      grid.appendChild(cell);
+    }
+  }
+
+  function setCount(n) {
+    n = Math.max(MIN, Math.min(MAX, n));
+    range.value = n;
+    countEl.textContent = n;
+    renderNames(n);
+  }
+
+  document.getElementById('minus').onclick = () => setCount(+range.value - 1);
+  document.getElementById('plus').onclick  = () => setCount(+range.value + 1);
+  range.oninput = () => setCount(+range.value);
+
+  document.getElementById('fillBtn').onclick = () => {
+    grid.querySelectorAll('input').forEach((inp, i) => {
+      if (!inp.value.trim()) inp.value = `Player ${i + 1}`;
+    });
+  };
+
+  document.getElementById('createBtn').onclick = async () => {
+    errEl.textContent = '';
+    const vals = [...grid.querySelectorAll('input')].map((inp, i) =>
+      inp.value.trim() || `Player ${i + 1}`);
+    try {
+      const res = await fetch('/draft/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names: vals }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { errEl.textContent = data.error || 'Could not create race.'; return; }
+      window.location.href = `/draft/race/${data.run_id}`;
+    } catch {
+      errEl.textContent = 'Network error — please try again.';
+    }
+  };
+
+  setCount(8);
+</script>
+{% endblock %}

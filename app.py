@@ -46,6 +46,13 @@ from nfl_multiplayer_routes import nfl_mp_bp, register_nfl_socketio_events
 app.register_blueprint(nfl_mp_bp)
 register_nfl_socketio_events(socketio)
 
+# Fantasy Draft Order Randomizer — canvas footrace whose finish order
+# becomes the draft order. Deterministic per-race seed so live spectators
+# and replay-link viewers see the identical race.
+from draft_routes import draft_bp, register_draft_socketio_events
+app.register_blueprint(draft_bp)
+register_draft_socketio_events(socketio)
+
 # Generate 1 randomized run for 6-12 players
 def generate_run(num_players: int = 8, names=None):
     num_players = max(6, min(12, int(num_players)))

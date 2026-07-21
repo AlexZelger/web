@@ -970,10 +970,18 @@
   //  Social: claim-a-roster-spot, predictions, live reactions
   // ══════════════════════════════════════════════════════════════════════════
   const VIEWER_ID = (function () {
-    let v = localStorage.getItem("draft_vid");
-    if (!v) { v = "v" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("draft_vid", v); }
-    return v;
+    const gen = () => "v" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    try {
+      let v = localStorage.getItem("draft_vid");
+      if (!v) { v = gen(); localStorage.setItem("draft_vid", v); }
+      return v;
+    } catch (e) {           // iOS private mode / storage disabled
+      return gen();
+    }
   })();
+
+  const show = (el) => { if (el) el.classList.remove("is-hidden"); };
+  const hide = (el) => { if (el) el.classList.add("is-hidden"); };
 
   let myClaimLane = null, myPrediction = null, predsLocked = false;
   const claimsMap = {};   // lane -> name
@@ -998,14 +1006,24 @@
     if (!claimPicker) return;
     claimPicker.innerHTML = RUNNERS.map(chipHTML).join("");
     claimPicker.querySelectorAll(".pick-chip").forEach(chip => {
-      chip.onclick = () => socket.emit("draft_claim", { run_id: RUN_ID, viewer_id: VIEWER_ID, lane: +chip.dataset.lane });
+      chip.onclick = () => {
+        const lane = +chip.dataset.lane;
+        if (chip.disabled) return;
+        setMyClaim(lane);                                  // optimistic — respond instantly
+        if (socket) socket.emit("draft_claim", { run_id: RUN_ID, viewer_id: VIEWER_ID, lane });
+      };
     });
   }
   function buildPredictPicker() {
     if (!predictPicker) return;
     predictPicker.innerHTML = RUNNERS.map(chipHTML).join("");
     predictPicker.querySelectorAll(".pick-chip").forEach(chip => {
-      chip.onclick = () => { if (!predsLocked) socket.emit("draft_predict", { run_id: RUN_ID, viewer_id: VIEWER_ID, lane: +chip.dataset.lane }); };
+      chip.onclick = () => {
+        if (predsLocked) return;
+        const lane = +chip.dataset.lane;
+        setMyPrediction(lane);                             // optimistic
+        if (socket) socket.emit("draft_predict", { run_id: RUN_ID, viewer_id: VIEWER_ID, lane });
+      };
     });
   }
   function buildReactBar() {
@@ -1037,24 +1055,22 @@
     const r = RUNNERS[lane];
     if (claimCurrent) claimCurrent.textContent = r ? r.name : "—";
     if (claimToggle) claimToggle.textContent = "Change";
-    if (claimPicker) claimPicker.hidden = true;
-    if (predictItem) predictItem.hidden = false;
-    if (reactBar) reactBar.hidden = false;
+    hide(claimPicker);
+    show(predictItem);
+    show(reactBar);
     refreshClaimChips();
   }
   function setMyPrediction(lane) {
     myPrediction = lane;
     const r = RUNNERS[lane];
     if (predictCurrent) predictCurrent.textContent = r ? r.name : "none";
-    if (predictPicker) {
-      predictPicker.hidden = true;
-      predictPicker.querySelectorAll(".pick-chip").forEach(c => c.classList.toggle("mine", +c.dataset.lane === lane));
-    }
+    hide(predictPicker);
+    if (predictPicker) predictPicker.querySelectorAll(".pick-chip").forEach(c => c.classList.toggle("mine", +c.dataset.lane === lane));
   }
   function lockPredictions() {
     predsLocked = true;
     if (predictToggle) predictToggle.disabled = true;
-    if (predictPicker) predictPicker.hidden = true;
+    hide(predictPicker);
     if (myPrediction === null && predictCurrent) predictCurrent.textContent = "no pick";
   }
   function floatReaction(lane, emoji, name) {
@@ -1101,8 +1117,8 @@
     predCountEl.textContent = totalMaybe != null ? `${count}/${totalMaybe} predicted` : `${count} predicted`;
   }
 
-  if (claimToggle) claimToggle.onclick = () => { claimPicker.hidden = !claimPicker.hidden; if (predictPicker) predictPicker.hidden = true; };
-  if (predictToggle) predictToggle.onclick = () => { if (!predsLocked) { predictPicker.hidden = !predictPicker.hidden; if (claimPicker) claimPicker.hidden = true; } };
+  if (claimToggle) claimToggle.onclick = () => { claimPicker.classList.toggle("is-hidden"); hide(predictPicker); };
+  if (predictToggle) predictToggle.onclick = () => { if (!predsLocked) { predictPicker.classList.toggle("is-hidden"); hide(claimPicker); } };
   buildClaimPicker(); buildPredictPicker(); buildReactBar();
   if (predictReveal) predictReveal.hidden = true;
 
@@ -1144,10 +1160,17 @@
   socket.on("draft_claims", (data) => applyClaims(data && data.claims));
   socket.on("draft_your_claim", (data) => { if (data && typeof data.lane === "number") setMyClaim(data.lane); });
   socket.on("draft_claim_rejected", (data) => {
-    if (!claimCurrent) return;
-    const prev = claimCurrent.textContent;
-    claimCurrent.textContent = "⚠ " + ((data && data.message) || "taken");
-    setTimeout(() => { if (myClaimLane === null) claimCurrent.textContent = "— pick your spot —"; else claimCurrent.textContent = prev; }, 2200);
+    // The optimistic claim didn't take (spot already taken) — revert.
+    myClaimLane = null;
+    if (claimToggle) claimToggle.textContent = "Claim spot";
+    hide(predictItem);
+    hide(reactBar);
+    show(claimPicker);
+    refreshClaimChips();
+    if (claimCurrent) {
+      claimCurrent.textContent = "⚠ " + ((data && data.message) || "spot taken");
+      setTimeout(() => { if (myClaimLane === null) claimCurrent.textContent = "— pick your spot —"; }, 2600);
+    }
   });
   socket.on("draft_your_prediction", (data) => { if (data && typeof data.lane === "number") setMyPrediction(data.lane); });
   socket.on("draft_pred_count", (data) => { if (data) updatePredCount(data.count, data.total); });

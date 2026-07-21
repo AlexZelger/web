@@ -197,6 +197,7 @@
     border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;
     font-family: 'IBM Plex Mono', monospace;
   }
+  .is-hidden { display: none !important; }
   .social-row { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; }
   .social-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .social-lbl { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
@@ -326,16 +327,16 @@
         <span class="claim-current" id="claimCurrent">— pick your spot —</span>
         <button class="mini-btn" id="claimToggle">Claim spot</button>
       </div>
-      <div class="social-item" id="predictItem" hidden>
+      <div class="social-item is-hidden" id="predictItem">
         <span class="social-lbl">Your pick to win</span>
         <span class="predict-current" id="predictCurrent">none</span>
         <button class="mini-btn" id="predictToggle">Pick winner</button>
         <span class="pred-count" id="predCount"></span>
       </div>
     </div>
-    <div class="picker" id="claimPicker" hidden></div>
-    <div class="picker" id="predictPicker" hidden></div>
-    <div class="react-bar" id="reactBar" hidden>
+    <div class="picker is-hidden" id="claimPicker"></div>
+    <div class="picker is-hidden" id="predictPicker"></div>
+    <div class="react-bar is-hidden" id="reactBar">
       <span class="social-lbl">React</span>
     </div>
   </div>

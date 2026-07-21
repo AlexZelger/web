@@ -127,15 +127,16 @@ def watch(run_id):
 
 @draft_bp.route("/results/<run_id>")
 def results(run_id):
-    """Final draft order — shareable, static (no animation)."""
+    """Race replay + final draft order + snake board (shareable link)."""
     run = dm.get_run(run_id)
     if not run:
         return render_template("draft/gone.html"), 404
     return render_template(
-        "draft/results.html",
-        run_id=run_id,
-        order=dm.draft_order(run),
-        finished=dm.is_finished(run),
+        "draft/race.html",
+        run=dm.public_run(run),
+        is_host=False,
+        page_mode="replay",
+        server_time=int(time.time() * 1000),
     )
 
 

@@ -261,17 +261,47 @@
   .pr-mark.ok { color: #7fe08a; }
   .pr-mark.no { color: #e77; }
   .pr-mark.none { color: var(--muted); }
+
+  /* Snake draft board */
+  .snake { margin-top: 16px; }
+  .snake-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .snake-head h3 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 0.1em; color: var(--gold);
+  }
+  .snake-rounds { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .snake-rounds input {
+    width: 54px; font-size: 12px; padding: 4px 6px; border-radius: 5px;
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: var(--chalk);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .export-row { display: flex; gap: 6px; margin-left: auto; }
+  .snake-grid-wrap { overflow-x: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+  .snake-grid { border-collapse: collapse; font-size: 11px; min-width: 100%; }
+  .snake-grid th, .snake-grid td {
+    padding: 6px 8px; text-align: center; white-space: nowrap;
+    border-bottom: 1px solid rgba(255,255,255,0.06); border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .snake-grid thead th {
+    position: sticky; top: 0; background: #123018; color: var(--chalk);
+    font-weight: 600; border-bottom: 2px solid rgba(242,193,78,0.4);
+  }
+  .snake-grid th .team-sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+  .snake-grid td.rnd { color: var(--muted); background: rgba(0,0,0,0.2); font-weight: 600; position: sticky; left: 0; }
+  .snake-grid td .pk-no { color: var(--gold); font-family: 'Bebas Neue', sans-serif; font-size: 13px; }
+  .snake-grid td .pk-name { color: var(--chalk); }
+  .snake-grid tbody tr:nth-child(even) td:not(.rnd) { background: rgba(255,255,255,0.02); }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set pmode = page_mode | default('live') %}
 <div class="race-wrap">
   <div class="race-head">
-    <h1>🏈 Draft Race</h1>
+    <h1>🏈 {{ 'Race Replay' if pmode == 'replay' else 'Draft Race' }}</h1>
     <div class="head-right">
       <span class="weather-badge" id="weatherBadge">☀️ Clear</span>
       <button class="icon-btn" id="muteBtn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
-      <span class="role-pill">{{ 'Host' if is_host else 'Spectator' }}</span>
+      {% if pmode != 'replay' %}<span class="role-pill">{{ 'Host' if is_host else 'Spectator' }}</span>{% endif %}
     </div>
   </div>
 
@@ -287,6 +317,7 @@
     <span class="call" id="announcerCall">Warming up on the sideline…</span>
   </div>
 
+  {% if pmode != 'replay' %}
   <!-- Social bar: claim your roster spot, predict the winner, react live -->
   <div class="social" id="social">
     <div class="social-row">
@@ -308,6 +339,7 @@
       <span class="social-lbl">React</span>
     </div>
   </div>
+  {% endif %}
 
   <div class="stage">
     <div class="field-col">
@@ -345,6 +377,22 @@
     <h2>Draft Order</h2>
     <ol class="order-list" id="orderList"></ol>
     <div class="predict-reveal" id="predictReveal"></div>
+
+    <!-- Snake draft board + export -->
+    <div class="snake" id="snakeBox">
+      <div class="snake-head">
+        <h3>Snake Draft Board</h3>
+        <label class="snake-rounds">Rounds
+          <input type="number" id="snakeRounds" min="1" max="30" value="15"/>
+        </label>
+        <div class="export-row">
+          <button class="mini-btn" id="copyOrderBtn">Copy order</button>
+          <button class="mini-btn" id="downloadCsvBtn">Download CSV</button>
+        </div>
+      </div>
+      <div class="snake-grid-wrap"><table class="snake-grid" id="snakeGrid"></table></div>
+    </div>
+
     <div class="stats-grid" id="statsPanel"></div>
     <div class="after">
       <a class="btn btn-ghost" id="replayBtn" href="#">Replay</a>
@@ -361,6 +409,7 @@
     run: {{ run | tojson }},
     isHost: {{ 'true' if is_host else 'false' }},
     serverTime: {{ server_time }},
+    mode: "{{ page_mode | default('live') }}",
   };
 </script>
 <script src="{{ url_for('static', filename='draft/field.js') }}"></script>

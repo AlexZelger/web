@@ -24,6 +24,9 @@
   const DURATION = RUN.duration;          // race seconds (after kickoff)
   const RUN_ID = RUN.run_id;
   const WEATHER = RUN.weather || "clear"; // clear | rain | snow | mud
+  const MODE = DRAFT.mode || "live";      // live | replay (results page)
+  const LIVE = MODE !== "replay";
+  let socket = null;                       // only created in live mode
   const COUNTDOWN = 3;                     // seconds of pre-race countdown
   const PHOTO_MARGIN = 1.0;               // 1st/2nd finish gap that triggers photo finish
 
@@ -611,7 +614,7 @@
       row.innerHTML =
         `<span class="lb-rank"></span>` +
         `<span class="lb-sw" style="background:${r.color}"></span>` +
-        `<span class="lb-name">${escapeHtml(r.name)} <span class="lb-team">${escapeHtml(r.abbr || "")}</span></span>` +
+        `<span class="lb-name">${escapeHtml(r.name)}</span>` +
         `<span class="lb-pct"></span>`;
       lbRows.appendChild(row);
     }
@@ -696,11 +699,11 @@
     mode = "done";
     render();
 
-    if (!wasReplay && DRAFT.isHost && !endedEmitted) {
+    if (LIVE && socket && !wasReplay && DRAFT.isHost && !endedEmitted) {
       endedEmitted = true;
       socket.emit("draft_ended", { run_id: RUN_ID });
     }
-    statusLine.textContent = "Race complete — draft order locked in!";
+    statusLine.textContent = wasReplay ? "That's the race!" : "Race complete — draft order locked in!";
 
     const finish = () => { Sound.airhorn(); Sound.cheer(); shakeField(); showPodium(); startCelebration(); };
     if (PHOTO_FINISH && !document.hidden) playPhotoFinish(finish);
@@ -734,8 +737,22 @@
     const SLOWMO = 0.32;                       // playback speed (lower = slower)
     const durMs = Math.max(1400, (tEnd - tStart) / SLOWMO * 1000);
     const HOLD_MS = 750;                       // freeze-frame on the crossing before the podium
-    const focusY = (laneCenter(ordered[0].lane) + laneCenter(ordered[1].lane)) / 2;
-    const regionW = 320, z = W / regionW;
+
+    // Frame BOTH lead runners at the goal — size the zoom so their lanes fit
+    // vertically even when they're on opposite sides of the field, instead of
+    // fixing on the mid-point (which cropped far-apart runners out).
+    const laneTop = Math.min(laneCenter(ordered[0].lane), laneCenter(ordered[1].lane));
+    const laneBot = Math.max(laneCenter(ordered[0].lane), laneCenter(ordered[1].lane));
+    const yTop = laneTop - laneH * 1.3;        // headroom for crowns/labels
+    const yBot = laneBot + laneH * 1.0;        // room for feet/shadow
+    const regionH = Math.max(1, yBot - yTop);
+    const regionW = 340;
+    const xRight = X_GOAL + 40;
+    const xLeft = xRight - regionW;
+    const cxRegion = (xLeft + xRight) / 2;
+    const cyRegion = (yTop + yBot) / 2;
+    const z = Math.max(0.9, Math.min(3.4, Math.min(W / regionW, H / regionH)));
+
     const start = performance.now();
     let done = false;
     const finishUp = () => { if (done) return; done = true; pfBanner.classList.remove("show"); cb(); };
@@ -744,9 +761,9 @@
     function drawFrame(e) {
       ctx.save();
       ctx.fillStyle = "#0c2415"; ctx.fillRect(0, 0, W, H);
-      // zoom transform focused on the goal line + leaders
+      // zoom transform framing both lead runners at the goal line
       ctx.translate(W / 2, H / 2); ctx.scale(z, z);
-      ctx.translate(-(X_GOAL - regionW * 0.35), -focusY);
+      ctx.translate(-cxRegion, -cyRegion);
       drawField(e);
       const lead = leaderLane(e);
       for (const r of [...RUNNERS].sort((a, b) => progress(a, e) - progress(b, e))) {
@@ -775,11 +792,85 @@
       <li class="order-row">
         <span class="pk">${r.place}</span>
         <span class="sw" style="background:${r.color}"></span>
-        <span class="nm">${escapeHtml(r.name)} <span class="nm-team">${escapeHtml(r.team || "")}</span></span>
+        <span class="nm">${escapeHtml(r.name)}</span>
       </li>`).join("");
     renderStats();
+    renderSnakeBoard();
     podium.classList.add("show");
   }
+
+  // ── Snake draft board + export ────────────────────────────────────────────
+  const snakeGrid = document.getElementById("snakeGrid");
+  const snakeRoundsInput = document.getElementById("snakeRounds");
+
+  function draftSlots() { return [...RUNNERS].sort((a, b) => a.place - b.place); }  // index 0 = pick #1
+  function snakeRounds() {
+    let r = parseInt(snakeRoundsInput && snakeRoundsInput.value, 10);
+    if (!r || r < 1) r = 1; if (r > 30) r = 30;
+    return r;
+  }
+  // Overall pick number for draft slot `slot` (1-based) in round `rnd` (1-based).
+  function snakeOverall(slot, rnd, n) {
+    const posInRound = (rnd % 2 === 1) ? slot : (n - slot + 1);
+    return (rnd - 1) * n + posInRound;
+  }
+  function renderSnakeBoard() {
+    if (!snakeGrid) return;
+    const slots = draftSlots();
+    const n = slots.length;
+    const rounds = snakeRounds();
+    let head = "<thead><tr><th>Rnd</th>";
+    slots.forEach((r, i) => {
+      head += `<th><span class="team-sw" style="background:${r.color}"></span>${escapeHtml(r.name)}`
+        + `<br><span style="color:var(--muted);font-weight:400">#${i + 1}</span></th>`;
+    });
+    head += "</tr></thead>";
+    let body = "<tbody>";
+    for (let rnd = 1; rnd <= rounds; rnd++) {
+      body += `<tr><td class="rnd">${rnd}</td>`;
+      for (let slot = 1; slot <= n; slot++) {
+        body += `<td><span class="pk-no">${snakeOverall(slot, rnd, n)}</span></td>`;
+      }
+      body += "</tr>";
+    }
+    snakeGrid.innerHTML = head + body + "</tbody>";
+  }
+  function csvCell(v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function snakeCsv() {
+    const slots = draftSlots();
+    const n = slots.length, rounds = snakeRounds();
+    const rows = [["Overall", "Round", "PickInRound", "Slot", "Name"]];
+    for (let rnd = 1; rnd <= rounds; rnd++) {
+      for (let pos = 1; pos <= n; pos++) {
+        const slot = (rnd % 2 === 1) ? pos : (n - pos + 1);
+        rows.push([(rnd - 1) * n + pos, rnd, pos, slot, slots[slot - 1].name]);
+      }
+    }
+    return rows.map(row => row.map(csvCell).join(",")).join("\n");
+  }
+  function draftOrderText() {
+    return "Draft Order — race " + RUN_ID + "\n" +
+      draftSlots().map((r, i) => `${i + 1}. ${r.name}`).join("\n");
+  }
+  async function copyText(text, btn) {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    if (btn) { const t = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => btn.textContent = t, 1300); }
+  }
+  (function setupExport() {
+    if (snakeRoundsInput) snakeRoundsInput.oninput = renderSnakeBoard;
+    const copyBtn = document.getElementById("copyOrderBtn");
+    const csvBtn = document.getElementById("downloadCsvBtn");
+    if (copyBtn) copyBtn.onclick = () => copyText(draftOrderText(), copyBtn);
+    if (csvBtn) csvBtn.onclick = () => {
+      const blob = new Blob([snakeCsv()], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `draft-${RUN_ID}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+  })();
 
   // ── Post-race stats (computed from the deterministic curves) ──────────────
   function renderStats() {
@@ -944,7 +1035,7 @@
   function setMyClaim(lane) {
     myClaimLane = lane;
     const r = RUNNERS[lane];
-    if (claimCurrent) claimCurrent.textContent = r ? `${r.name} · ${r.abbr}` : "—";
+    if (claimCurrent) claimCurrent.textContent = r ? r.name : "—";
     if (claimToggle) claimToggle.textContent = "Change";
     if (claimPicker) claimPicker.hidden = true;
     if (predictItem) predictItem.hidden = false;
@@ -1015,8 +1106,9 @@
   buildClaimPicker(); buildPredictPicker(); buildReactBar();
   if (predictReveal) predictReveal.hidden = true;
 
-  // ── Socket wiring ─────────────────────────────────────────────────────────
-  const socket = io();
+  // ── Socket wiring (live only — the replay/results page runs offline) ──────
+  if (LIVE) {
+  socket = io();
 
   socket.on("connect", () => socket.emit("draft_join", { run_id: RUN_ID, viewer_id: VIEWER_ID }));
 
@@ -1090,6 +1182,17 @@
       Sound.resume();
       socket.emit("draft_start", { run_id: RUN_ID });
     };
+  }
+  }  // end if (LIVE)
+
+  // ── Replay mode (results page): show the board + auto-play the race ────────
+  if (!LIVE) {
+    showPodium();                 // draft order + snake board + stats, available immediately
+    mode = "replay";
+    replayStart = performance.now();
+    statusLine.textContent = "Replaying the race…";
+    announcerCall.textContent = "Here's how it played out…";
+    startLoop();
   }
 
   // First paint.

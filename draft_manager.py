@@ -62,6 +62,21 @@ COLORS = [
     "#55efc4", "#fd79a8",
 ]
 
+# Team nicknames + 3-letter abbreviations (paired with a lane color at runtime).
+TEAM_NAMES = [
+    ("Thunder", "THU"), ("Blitz", "BLZ"), ("Titans", "TTN"), ("Rovers", "ROV"),
+    ("Comets", "CMT"), ("Vipers", "VPR"), ("Outlaws", "OUT"), ("Rockets", "RKT"),
+    ("Chargers", "CHG"), ("Foxes", "FOX"), ("Sentinels", "SEN"), ("Mavericks", "MAV"),
+    ("Grizzlies", "GRZ"), ("Cyclones", "CYC"), ("Pioneers", "PIO"), ("Wolves", "WOL"),
+    ("Hawks", "HWK"), ("Dynamos", "DYN"), ("Rhinos", "RHN"), ("Cobras", "COB"),
+    ("Bandits", "BAN"), ("Falcons", "FLC"), ("Kodiaks", "KOD"), ("Surge", "SRG"),
+    ("Phantoms", "PHM"), ("Rangers", "RGR"), ("Bulls", "BUL"), ("Storm", "STM"),
+    ("Aces", "ACE"), ("Knights", "KNT"), ("Sharks", "SHK"), ("Miners", "MNR"),
+]
+
+# Weather options and their draw weights (visual atmosphere; does not alter order).
+WEATHER = ["clear", "clear", "clear", "rain", "snow", "mud"]
+
 # ---------------------------------------------------------------------------
 # In-memory store
 # ---------------------------------------------------------------------------
@@ -117,6 +132,10 @@ def create_run(names) -> str:
     seed = time.time_ns()
     rng = random.Random(seed)
 
+    # Assign distinct team identities (nickname + abbr), paired with a color.
+    team_idx = list(range(len(TEAM_NAMES)))
+    rng.shuffle(team_idx)
+
     runners = []
     for i, name in enumerate(cleaned):
         # Faster speed -> shorter finish time. Jitter keeps ties away.
@@ -129,15 +148,32 @@ def create_run(names) -> str:
         a2 = rng.uniform(-0.04, 0.04)
         a3 = rng.uniform(-0.025, 0.025)
 
+        # Optional deterministic stumble: a brief mid-race slowdown ("trip").
+        # The Gaussian dip is ~0 at tau=0 and tau=1, so finish_time (and thus
+        # the draft order) is unchanged — it's pure mid-race drama. Amplitude
+        # is bounded so velocity stays positive (no backward motion).
+        stumble = None
+        if rng.random() < 0.33:
+            stumble = {
+                "c": round(rng.uniform(0.30, 0.72), 4),   # center (fraction of race)
+                "w": 0.08,                                 # width
+                "a": round(rng.uniform(0.045, 0.075), 4),  # depth
+            }
+
+        team_name, team_abbr = TEAM_NAMES[team_idx[i % len(team_idx)]]
+
         runners.append({
             "name":        name,
             "lane":        i,
             "number":      rng.randint(1, 99),
             "color":       COLORS[i % len(COLORS)],
+            "team":        team_name,
+            "abbr":        team_abbr,
             "finish_time": round(finish_time, 4),
             "a1":          round(a1, 5),
             "a2":          round(a2, 5),
             "a3":          round(a3, 5),
+            "stumble":     stumble,
             "place":       None,
         })
 
@@ -156,7 +192,12 @@ def create_run(names) -> str:
         "status":         "ready",          # ready | running | finished
         "started_at_ms":  None,
         "duration":       round(duration, 4),
+        "weather":        rng.choice(WEATHER),
         "runners":        runners,
+        # Social state (claim-a-roster-spot):
+        "claims":         {},   # str(lane)          -> viewer_id
+        "claim_vids":     {},   # viewer_id          -> lane (int)
+        "predictions":    {},   # str(claimer_lane)  -> predicted winner lane (int)
     }
     logger.info("Created draft run %s with %d runners", run_id, n)
     return run_id
@@ -174,14 +215,18 @@ def public_run(run: dict) -> dict:
         "status":   run["status"],
         "duration": run["duration"],
         "started_at_ms": run["started_at_ms"],
+        "weather":  run.get("weather", "clear"),
         "runners": [
             {
                 "name":   r["name"],
                 "lane":   r["lane"],
                 "number": r["number"],
                 "color":  r["color"],
+                "team":   r.get("team", ""),
+                "abbr":   r.get("abbr", ""),
                 "finish_time": r["finish_time"],
                 "a1": r["a1"], "a2": r["a2"], "a3": r["a3"],
+                "stumble": r.get("stumble"),
                 "place":  r["place"],
             }
             for r in run["runners"]
@@ -235,6 +280,76 @@ def cleanup_stale_runs() -> int:
     return len(stale)
 
 
+# ---------------------------------------------------------------------------
+# Social state: claim-a-roster-spot, predictions, reactions
+# ---------------------------------------------------------------------------
+
+def winner_lane(run: dict) -> int | None:
+    for r in run["runners"]:
+        if r["place"] == 1:
+            return r["lane"]
+    return None
+
+
+def claim_spot(run_id: str, viewer_id: str, lane: int) -> int:
+    """A viewer claims a roster spot (their league identity). Returns the lane."""
+    run = _runs.get(run_id)
+    if not run:
+        raise DraftError("Race not found.")
+    n = len(run["runners"])
+    if not isinstance(lane, int) or not (0 <= lane < n):
+        raise DraftError("Invalid spot.")
+    holder = run["claims"].get(str(lane))
+    if holder and holder != viewer_id:
+        raise DraftError("That spot is already taken.")
+    # Release any previous spot this viewer held (switching identity).
+    prev = run["claim_vids"].get(viewer_id)
+    if prev is not None and prev != lane:
+        run["claims"].pop(str(prev), None)
+        run["predictions"].pop(str(prev), None)
+    run["claims"][str(lane)] = viewer_id
+    run["claim_vids"][viewer_id] = lane
+    return lane
+
+
+def claim_of(run: dict, viewer_id: str) -> int | None:
+    """The lane this viewer has claimed, or None."""
+    if not viewer_id:
+        return None
+    return run["claim_vids"].get(viewer_id)
+
+
+def claims_public(run: dict) -> dict:
+    """{lane(int): runner name} for every claimed spot (for display)."""
+    out = {}
+    for lane_s in run["claims"]:
+        lane = int(lane_s)
+        out[lane] = run["runners"][lane]["name"]
+    return out
+
+
+def predict(run_id: str, viewer_id: str, predicted_lane: int) -> int:
+    """Record a viewer's winner prediction. Returns their claimer lane."""
+    run = _runs.get(run_id)
+    if not run:
+        raise DraftError("Race not found.")
+    if run["status"] != "ready":
+        raise DraftError("Predictions are locked — the race has started.")
+    lane = run["claim_vids"].get(viewer_id)
+    if lane is None:
+        raise DraftError("Claim your spot before predicting.")
+    n = len(run["runners"])
+    if not isinstance(predicted_lane, int) or not (0 <= predicted_lane < n):
+        raise DraftError("Invalid pick.")
+    run["predictions"][str(lane)] = predicted_lane
+    return lane
+
+
+def predictions_public(run: dict) -> dict:
+    """{claimer_lane(int): predicted winner lane(int)}."""
+    return {int(k): v for k, v in run["predictions"].items()}
+
+
 def progress(runner: dict, elapsed: float) -> float:
     """
     Reference implementation of the client-side progress curve (0..1).
@@ -248,4 +363,8 @@ def progress(runner: dict, elapsed: float) -> float:
          + runner["a1"] * math.sin(math.pi * tau)
          + runner["a2"] * math.sin(2 * math.pi * tau)
          + runner["a3"] * math.sin(3 * math.pi * tau))
+    st = runner.get("stumble")
+    if st:
+        z = (tau - st["c"]) / st["w"]
+        p -= st["a"] * math.exp(-z * z)
     return min(max(p, 0.0), 1.0)

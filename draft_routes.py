@@ -149,7 +149,9 @@ def register_draft_socketio_events(socketio):
 
     @socketio.on("draft_join")
     def on_join(data):
-        run_id = (data or {}).get("run_id")
+        data = data or {}
+        run_id = data.get("run_id")
+        viewer_id = data.get("viewer_id")
         run = dm.get_run(run_id) if run_id else None
         if not run:
             emit("draft_error", {"message": "Race not found."})
@@ -157,6 +159,16 @@ def register_draft_socketio_events(socketio):
         join_room(run_id)
         state = dm.public_run(run)
         state["server_time"] = int(time.time() * 1000)
+        # Social state
+        state["claims"] = dm.claims_public(run)
+        my_lane = dm.claim_of(run, viewer_id)
+        state["your_claim"] = my_lane
+        preds = dm.predictions_public(run)
+        state["your_prediction"] = preds.get(my_lane) if my_lane is not None else None
+        state["pred_count"] = len(preds)
+        if dm.is_finished(run):
+            state["predictions"] = preds
+            state["winner_lane"] = dm.winner_lane(run)
         emit("draft_state", state)
 
     @socketio.on("draft_start")
@@ -180,7 +192,68 @@ def register_draft_socketio_events(socketio):
     @socketio.on("draft_ended")
     def on_ended(data):
         run_id = (data or {}).get("run_id")
-        if not run_id or not dm.get_run(run_id):
+        run = dm.get_run(run_id) if run_id else None
+        if not run:
             return
         dm.finish_run(run_id)
-        socketio.emit("draft_finished", {}, to=run_id)
+        run = dm.get_run(run_id)
+        socketio.emit(
+            "draft_finished",
+            {"predictions": dm.predictions_public(run), "winner_lane": dm.winner_lane(run)},
+            to=run_id,
+        )
+
+    @socketio.on("draft_claim")
+    def on_claim(data):
+        data = data or {}
+        run_id, viewer_id, lane = data.get("run_id"), data.get("viewer_id"), data.get("lane")
+        if not run_id or not viewer_id or not isinstance(lane, int):
+            emit("draft_error", {"message": "Bad claim."})
+            return
+        try:
+            dm.claim_spot(run_id, viewer_id, lane)
+        except dm.DraftError as e:
+            emit("draft_claim_rejected", {"message": str(e)})
+            return
+        run = dm.get_run(run_id)
+        socketio.emit("draft_claims", {"claims": dm.claims_public(run)}, to=run_id)
+        emit("draft_your_claim", {"lane": lane})
+
+    @socketio.on("draft_predict")
+    def on_predict(data):
+        data = data or {}
+        run_id, viewer_id, lane = data.get("run_id"), data.get("viewer_id"), data.get("lane")
+        if not run_id or not viewer_id or not isinstance(lane, int):
+            emit("draft_error", {"message": "Bad prediction."})
+            return
+        try:
+            dm.predict(run_id, viewer_id, lane)
+        except dm.DraftError as e:
+            emit("draft_error", {"message": str(e)})
+            return
+        run = dm.get_run(run_id)
+        socketio.emit(
+            "draft_pred_count",
+            {"count": len(dm.predictions_public(run)), "total": len(dm.claims_public(run))},
+            to=run_id,
+        )
+        emit("draft_your_prediction", {"lane": lane})
+
+    @socketio.on("draft_react")
+    def on_react(data):
+        data = data or {}
+        run_id, viewer_id, emoji = data.get("run_id"), data.get("viewer_id"), data.get("emoji")
+        run = dm.get_run(run_id) if run_id else None
+        if not run:
+            return
+        lane = dm.claim_of(run, viewer_id)
+        if lane is None:
+            emit("draft_error", {"message": "Claim your spot to react."})
+            return
+        if not isinstance(emoji, str) or not (1 <= len(emoji) <= 8):
+            return
+        socketio.emit(
+            "draft_reaction",
+            {"lane": lane, "emoji": emoji, "name": run["runners"][lane]["name"]},
+            to=run_id,
+        )

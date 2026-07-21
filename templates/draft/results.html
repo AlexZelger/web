@@ -33,6 +33,7 @@
   .pick { font-family: 'Bebas Neue', sans-serif; font-size: 26px; text-align: center; color: #cfe6d6; }
   .sw { width: 16px; height: 16px; border-radius: 5px; }
   .nm { font-size: 15px; }
+  .nm .team { color: var(--muted); font-size: 11px; margin-left: 4px; }
   .badge { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
   .actions { margin-top: 22px; display: flex; gap: 10px; flex-wrap: wrap; }
   .btn {
@@ -68,7 +69,7 @@
     <li class="{{ 'top' if loop.index == 1 }}">
       <span class="pick">{{ loop.index }}</span>
       <span class="sw" style="background: {{ r.color }}"></span>
-      <span class="nm">{{ r.name }}</span>
+      <span class="nm">{{ r.name }}{% if r.team %} <span class="team">{{ r.team }}</span>{% endif %}</span>
       {% if loop.index == 1 %}<span class="badge">1st Pick</span>{% endif %}
     </li>
     {% endfor %}

@@ -51,6 +51,7 @@ MAX_AGE_SECS = 60 * 60 * 6          # races expire after 6 hours
 
 BASE_DURATION = 9.0                 # nominal seconds for an average runner
 TAIL_SECS     = 1.2                 # extra time so the last runner clearly crosses
+ELIM_BASE_DURATION = 6.0            # shorter rounds for the multi-round eliminator
 
 # 32 visually distinct lane colors.
 COLORS = [
@@ -121,13 +122,81 @@ def _clean_names(names) -> list[str]:
 # Simulation
 # ---------------------------------------------------------------------------
 
-def create_run(names) -> str:
+def _make_curve(rng: random.Random, base_duration: float) -> dict:
+    """A deterministic per-runner race curve: finish time, wobble, optional trip."""
+    speed = rng.uniform(0.82, 1.22)                 # faster -> shorter finish time
+    finish_time = base_duration / speed + rng.uniform(-0.15, 0.15)
+
+    # Lead-change wobble. Bounds keep p'(tau) > 0 everywhere:
+    #   0.08*pi + 0.04*2pi + 0.025*3pi = pi*0.735 < 1
+    a1 = rng.uniform(-0.08, 0.08)
+    a2 = rng.uniform(-0.04, 0.04)
+    a3 = rng.uniform(-0.025, 0.025)
+
+    # Optional deterministic stumble (~0 at tau=0 and tau=1, so finish_time holds).
+    stumble = None
+    if rng.random() < 0.33:
+        stumble = {
+            "c": round(rng.uniform(0.30, 0.72), 4),
+            "w": 0.08,
+            "a": round(rng.uniform(0.045, 0.075), 4),
+        }
+    return {
+        "finish_time": round(finish_time, 4),
+        "a1": round(a1, 5), "a2": round(a2, 5), "a3": round(a3, 5),
+        "stumble": stumble,
+    }
+
+
+def _build_eliminator(runners: list, rng: random.Random) -> tuple[list, float]:
+    """
+    Precompute the full elimination sequence. Each round races the remaining
+    runners; the last-place finisher is eliminated and locks the lowest open
+    draft slot. Returns (rounds, total_duration_seconds).
+
+    Draft order fills bottom-up: first eliminated drafts last, survivor is #1.
+    """
+    n = len(runners)
+    rounds = []
+    remaining = list(range(n))
+    slot = n
+    while len(remaining) > 1:
+        participants = []
+        for lane in remaining:
+            participants.append({"lane": lane, **_make_curve(rng, ELIM_BASE_DURATION)})
+        # Last place this round = the largest finish time.
+        order = sorted(participants, key=lambda p: p["finish_time"])
+        elim_lane = order[-1]["lane"]
+        duration = round(max(p["finish_time"] for p in participants) + TAIL_SECS, 4)
+        rounds.append({
+            "index":        len(rounds),
+            "participants": participants,
+            "duration":     duration,
+            "eliminated":   elim_lane,
+            "slot":         slot,
+        })
+        runners[elim_lane]["place"] = slot
+        slot -= 1
+        remaining.remove(elim_lane)
+
+    runners[remaining[0]]["place"] = 1   # last runner standing drafts first
+
+    # Total timeline (must match the client's ELIM_COUNTDOWN / ELIM_PAUSE) — used
+    # only for the wall-clock "is_finished" fallback, so a generous estimate is fine.
+    total = 3.0 + sum(r["duration"] for r in rounds) + 2.5 * len(rounds) + 3.0
+    return rounds, round(total, 4)
+
+
+def create_run(names, mode: str = "standard") -> str:
     """
     Build a deterministic race from a list of names and store it.
+    mode: "standard" (single race) or "eliminator" (last-out series).
     Returns the run_id.
     """
     cleaned = _clean_names(names)
     n = len(cleaned)
+    if mode not in ("standard", "eliminator"):
+        mode = "standard"
 
     seed = time.time_ns()
     rng = random.Random(seed)
@@ -138,51 +207,28 @@ def create_run(names) -> str:
 
     runners = []
     for i, name in enumerate(cleaned):
-        # Faster speed -> shorter finish time. Jitter keeps ties away.
-        speed = rng.uniform(0.82, 1.22)
-        finish_time = BASE_DURATION / speed + rng.uniform(-0.15, 0.15)
-
-        # Lead-change wobble. Bounds keep p'(tau) > 0 everywhere:
-        #   0.08*pi + 0.04*2pi + 0.025*3pi = pi*0.735 < 1
-        a1 = rng.uniform(-0.08, 0.08)
-        a2 = rng.uniform(-0.04, 0.04)
-        a3 = rng.uniform(-0.025, 0.025)
-
-        # Optional deterministic stumble: a brief mid-race slowdown ("trip").
-        # The Gaussian dip is ~0 at tau=0 and tau=1, so finish_time (and thus
-        # the draft order) is unchanged — it's pure mid-race drama. Amplitude
-        # is bounded so velocity stays positive (no backward motion).
-        stumble = None
-        if rng.random() < 0.33:
-            stumble = {
-                "c": round(rng.uniform(0.30, 0.72), 4),   # center (fraction of race)
-                "w": 0.08,                                 # width
-                "a": round(rng.uniform(0.045, 0.075), 4),  # depth
-            }
-
         team_name, team_abbr = TEAM_NAMES[team_idx[i % len(team_idx)]]
-
         runners.append({
-            "name":        name,
-            "lane":        i,
-            "number":      rng.randint(1, 99),
-            "color":       COLORS[i % len(COLORS)],
-            "team":        team_name,
-            "abbr":        team_abbr,
-            "finish_time": round(finish_time, 4),
-            "a1":          round(a1, 5),
-            "a2":          round(a2, 5),
-            "a3":          round(a3, 5),
-            "stumble":     stumble,
-            "place":       None,
+            "name":   name,
+            "lane":   i,
+            "number": rng.randint(1, 99),
+            "color":  COLORS[i % len(COLORS)],
+            "team":   team_name,
+            "abbr":   team_abbr,
+            "place":  None,
         })
 
-    # Draft order = finish order (first across the line drafts first).
-    order = sorted(range(n), key=lambda idx: runners[idx]["finish_time"])
-    for place, idx in enumerate(order, start=1):
-        runners[idx]["place"] = place
-
-    duration = max(r["finish_time"] for r in runners) + TAIL_SECS
+    rounds = None
+    if mode == "eliminator":
+        rounds, duration = _build_eliminator(runners, rng)
+    else:
+        # Single race: give each runner one curve, order by finish time.
+        for r in runners:
+            r.update(_make_curve(rng, BASE_DURATION))
+        order = sorted(range(n), key=lambda idx: runners[idx]["finish_time"])
+        for place, idx in enumerate(order, start=1):
+            runners[idx]["place"] = place
+        duration = round(max(r["finish_time"] for r in runners) + TAIL_SECS, 4)
 
     run_id = _make_run_id()
     _runs[run_id] = {
@@ -191,7 +237,9 @@ def create_run(names) -> str:
         "created_at":     time.time(),
         "status":         "ready",          # ready | running | finished
         "started_at_ms":  None,
-        "duration":       round(duration, 4),
+        "mode":           mode,
+        "duration":       duration,
+        "rounds":         rounds,           # None for standard
         "weather":        rng.choice(WEATHER),
         "runners":        runners,
         # Social state (claim-a-roster-spot):
@@ -199,7 +247,7 @@ def create_run(names) -> str:
         "claim_vids":     {},   # viewer_id          -> lane (int)
         "predictions":    {},   # str(claimer_lane)  -> predicted winner lane (int)
     }
-    logger.info("Created draft run %s with %d runners", run_id, n)
+    logger.info("Created draft run %s (%s) with %d runners", run_id, mode, n)
     return run_id
 
 
@@ -210,27 +258,30 @@ def get_run(run_id: str) -> dict | None:
 
 def public_run(run: dict) -> dict:
     """Client-safe view of a run (everything the animation needs)."""
+    def runner_view(r):
+        v = {
+            "name":   r["name"],
+            "lane":   r["lane"],
+            "number": r["number"],
+            "color":  r["color"],
+            "team":   r.get("team", ""),
+            "abbr":   r.get("abbr", ""),
+            "place":  r["place"],
+        }
+        if "finish_time" in r:   # standard mode carries a single curve per runner
+            v.update({"finish_time": r["finish_time"], "a1": r["a1"], "a2": r["a2"],
+                      "a3": r["a3"], "stumble": r.get("stumble")})
+        return v
+
     return {
         "run_id":   run["run_id"],
         "status":   run["status"],
+        "mode":     run.get("mode", "standard"),
         "duration": run["duration"],
+        "rounds":   run.get("rounds"),   # None for standard
         "started_at_ms": run["started_at_ms"],
         "weather":  run.get("weather", "clear"),
-        "runners": [
-            {
-                "name":   r["name"],
-                "lane":   r["lane"],
-                "number": r["number"],
-                "color":  r["color"],
-                "team":   r.get("team", ""),
-                "abbr":   r.get("abbr", ""),
-                "finish_time": r["finish_time"],
-                "a1": r["a1"], "a2": r["a2"], "a3": r["a3"],
-                "stumble": r.get("stumble"),
-                "place":  r["place"],
-            }
-            for r in run["runners"]
-        ],
+        "runners":  [runner_view(r) for r in run["runners"]],
     }
 
 

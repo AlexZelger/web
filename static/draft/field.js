@@ -30,6 +30,45 @@
   const COUNTDOWN = 3;                     // seconds of pre-race countdown
   const PHOTO_MARGIN = 1.0;               // 1st/2nd finish gap that triggers photo finish
 
+  // ── Eliminator mode (multi-round, last-out) ───────────────────────────────
+  const ROUNDS = (RUN.rounds && Array.isArray(RUN.rounds)) ? RUN.rounds : null;
+  const ELIM = RUN.mode === "eliminator" && ROUNDS && ROUNDS.length > 0;
+  const ELIM_PAUSE = 2.4;                  // seconds between rounds to show the elimination
+  // Lane -> curve map per round, and the race-time windows for each round/pause.
+  const roundCurve = ELIM ? ROUNDS.map(rd => {
+    const m = {}; rd.participants.forEach(p => { m[p.lane] = p; }); return m;
+  }) : null;
+  const elimSegs = [];
+  let elimTotal = 0;
+  if (ELIM) {
+    let acc = 0;
+    ROUNDS.forEach((rd, i) => {
+      elimSegs.push({ round: i, type: "race", start: acc, end: acc + rd.duration });
+      acc += rd.duration;
+      elimSegs.push({ round: i, type: "pause", start: acc, end: acc + ELIM_PAUSE });
+      acc += ELIM_PAUSE;
+    });
+    elimTotal = acc;
+  }
+  const RACE_DURATION = ELIM ? elimTotal : DURATION;   // finish threshold for the loop
+
+  function elimState(raceE) {
+    if (raceE === null || raceE < 0) return { phase: "countdown" };
+    if (raceE >= elimTotal) return { phase: "done" };
+    for (const s of elimSegs) {
+      if (raceE >= s.start && raceE < s.end) return { phase: s.type, round: s.round, localE: raceE - s.start };
+    }
+    return { phase: "done" };
+  }
+  function elimOutBefore(round) {
+    const set = new Set();
+    for (let i = 0; i < round; i++) set.add(ROUNDS[i].eliminated);
+    return set;
+  }
+  function applyCurve(r, curve) {
+    r.finish_time = curve.finish_time; r.a1 = curve.a1; r.a2 = curve.a2; r.a3 = curve.a3; r.stumble = curve.stumble;
+  }
+
   // ── Element refs ──────────────────────────────────────────────────────────
   const canvas = document.getElementById("field");
   const ctx = canvas.getContext("2d");
@@ -62,7 +101,7 @@
   // ── Winner / photo-finish (deterministic) ─────────────────────────────────
   const ordered = [...RUNNERS].sort((a, b) => a.place - b.place);
   const WINNER = ordered[0];
-  const PHOTO_FINISH = ordered.length >= 2 &&
+  const PHOTO_FINISH = !ELIM && ordered.length >= 2 &&
     (ordered[1].finish_time - ordered[0].finish_time) < PHOTO_MARGIN;
 
   // ── Clock sync ────────────────────────────────────────────────────────────
@@ -119,7 +158,7 @@
   }
 
   // ── Announcer callouts (precomputed, deterministic) ───────────────────────
-  const CALLOUTS = (function build() {
+  const CALLOUTS = ELIM ? [{ t: 0, text: "🏈 And they're off!" }] : (function build() {
     const evts = [{ t: 0, text: "🏈 And they're off!" }];
     const maxFt = Math.max.apply(null, RUNNERS.map(r => r.finish_time));
     let prevLeader = null, lastAt = -1;
@@ -568,9 +607,85 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  //  Eliminator frame
+  // ══════════════════════════════════════════════════════════════════════════
+  function drawIdleRunner(r) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    drawRunner(r, 0, null, false, false);       // static at the start line
+    ctx.restore();
+    if (r.place != null && laneH >= 12) {        // locked draft slot tag
+      const cy = laneCenter(r.lane);
+      ctx.fillStyle = "rgba(242,193,78,0.85)";
+      ctx.font = `700 ${Math.max(10, Math.min(15, laneH * 0.45))}px 'Bebas Neue','IBM Plex Mono',monospace`;
+      ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText("#" + r.place, X0 + laneH * 0.5, cy - laneH * 0.34);
+    }
+  }
+
+  function renderElimRacers(round, localE, isPause) {
+    const rd = ROUNDS[round];
+    // rank participants by current progress
+    const ranked = rd.participants.map(p => {
+      applyCurve(RUNNERS[p.lane], p);
+      return { r: RUNNERS[p.lane], p: progress(RUNNERS[p.lane], localE) };
+    });
+    let leadLane = -1, best = -1;
+    for (const it of ranked) if (it.p > best) { best = it.p; leadLane = it.r.lane; }
+    ranked.sort((a, b) => a.p - b.p);            // slower first, leaders on top
+    for (const it of ranked) {
+      drawRunner(it.r, it.p, localE, false, !isPause && it.r.lane === leadLane);
+      if (isPause && it.r.lane === rd.eliminated) {   // flash the knocked-out runner
+        const cy = laneCenter(it.r.lane), x = X0 + it.p * TRACK;
+        ctx.fillStyle = "rgba(224,64,64,0.85)";
+        ctx.font = `700 ${Math.max(11, laneH * 0.5)}px 'Bebas Neue','IBM Plex Mono',monospace`;
+        ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+        ctx.fillText("OUT · #" + rd.slot, x, cy - laneH * 0.65);
+      }
+    }
+  }
+
+  function renderElim() {
+    const raceE = currentElapsed();
+    const st = elimState(raceE);
+    drawField(raceE);
+
+    if (st.phase === "done" || mode === "done" || mode === "celebrate") {
+      for (const r of RUNNERS) {
+        if (r.place === 1) drawRunner(r, 1, null, true, false);   // survivor at the goal
+        else drawIdleRunner(r);
+      }
+      drawWeather();
+      if (mode === "celebrate") drawConfetti(1 / 60);
+      updateLeaderboardElim({ phase: "done" });
+      updateAnnouncerElim({ phase: "done" });
+      return;
+    }
+    if (st.phase === "countdown") {
+      for (const r of RUNNERS) drawRunner(r, 0, null, false, false);
+      drawWeather();
+      if ((mode === "synced" || mode === "replay") && raceE !== null && raceE < 0) drawCountdown(raceE);
+      updateLeaderboardElim(st);
+      updateAnnouncerElim(st);
+      handleAudioElim(raceE, st);
+      return;
+    }
+    // race / pause
+    const out = elimOutBefore(st.round);
+    for (const r of RUNNERS) if (out.has(r.lane)) drawIdleRunner(r);
+    const localE = st.phase === "pause" ? ROUNDS[st.round].duration : st.localE;
+    renderElimRacers(st.round, localE, st.phase === "pause");
+    drawWeather();
+    updateLeaderboardElim(st);
+    updateAnnouncerElim(st);
+    handleAudioElim(raceE, st);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   //  Frame
   // ══════════════════════════════════════════════════════════════════════════
   function render() {
+    if (ELIM) { renderElim(); return; }
     const elapsed = currentElapsed();
     const finished = mode === "done" || mode === "celebrate";
     drawField(elapsed);
@@ -601,6 +716,7 @@
   // ── Live leaderboard ──────────────────────────────────────────────────────
   const LB_ROW_H = Math.max(22, Math.min(30, Math.floor(560 / N)));
   let lastLbTs = -1e9;   // ensure the very first positioning pass is never throttled
+  const MAXFT = ELIM ? 1 : Math.max.apply(null, RUNNERS.map(r => r.finish_time));
 
   function buildLeaderboard() {
     lbRows.style.height = (N * LB_ROW_H) + "px";
@@ -628,12 +744,16 @@
     lastLbTs = now;
 
     const ranked = RUNNERS.map(r => {
-      let p;
-      if (finished) p = 1 - r.place * 1e-6;          // preserve final order
-      else if (elapsed === null || elapsed < 0) p = 0;
-      else p = progress(r, elapsed);
-      return { r, p };
-    }).sort((a, b) => b.p - a.p);
+      let p, key;
+      if (finished) { p = 1; key = 2 - r.place * 1e-6; }          // final: order by place
+      else if (elapsed === null || elapsed < 0) { p = 0; key = 0; }
+      else {
+        p = progress(r, elapsed);
+        // Finished runners rank by finish time (earlier = ahead), above running ones.
+        key = (elapsed >= r.finish_time) ? (1 + (1 - r.finish_time / MAXFT)) : p * 0.999;
+      }
+      return { r, p, key };
+    }).sort((a, b) => b.key - a.key);
 
     ranked.forEach((item, idx) => {
       const row = lbRows.children[item.r.lane];
@@ -653,6 +773,69 @@
     if (announcerCall.textContent !== text) announcerCall.textContent = text;
   }
 
+  // ── Eliminator leaderboard / announcer / audio ────────────────────────────
+  function updateLeaderboardElim(st) {
+    if (!lbBuilt) buildLeaderboard();
+    const now = performance.now();
+    const live = st.phase === "race";
+    if (live && now - lastLbTs < 90) return;
+    lastLbTs = now;
+
+    const out = (st.phase === "race" || st.phase === "pause") ? elimOutBefore(st.round) : null;
+    const racing = st.round != null ? new Set(ROUNDS[st.round].participants.map(p => p.lane)) : new Set();
+    const localE = st.phase === "pause" ? ROUNDS[st.round].duration : st.localE;
+    const roundMaxFt = st.round != null ? Math.max.apply(null, ROUNDS[st.round].participants.map(p => p.finish_time)) : 1;
+
+    const ranked = RUNNERS.map(r => {
+      // done, or eliminated already -> sort by draft slot (best on top of the out group)
+      if (st.phase === "done" || (out && out.has(r.lane))) return { r, key: -1000 - r.place, done: true };
+      if (st.phase === "countdown" || !racing.has(r.lane)) return { r, key: 0, p: 0 };
+      const curve = roundCurve[st.round][r.lane];
+      applyCurve(r, curve);
+      const p = progress(r, localE);
+      // Finished runners rank by finish TIME (earlier = ahead) above still-running
+      // ones — otherwise everyone piles up tied at p=1 and finish order is lost.
+      const key = (localE >= curve.finish_time) ? (1 + (1 - curve.finish_time / roundMaxFt)) : p * 0.999;
+      return { r, key, p };
+    }).sort((a, b) => b.key - a.key);
+
+    ranked.forEach((item, idx) => {
+      const row = lbRows.children[item.r.lane];
+      if (!row) return;
+      row.style.transform = `translateY(${idx * LB_ROW_H}px)`;
+      row.querySelector(".lb-rank").textContent = idx + 1;
+      row.querySelector(".lb-pct").textContent = item.done ? "#" + item.r.place
+        : (item.p != null ? Math.round(item.p * 100) + "%" : "");
+      row.classList.toggle("leader", idx === 0 && st.phase === "race");
+      row.classList.toggle("lb-out", !!item.done && st.phase !== "done");
+    });
+  }
+
+  function updateAnnouncerElim(st) {
+    let text;
+    if (st.phase === "done") text = `${WINNER.name} takes the crown — drafts #1! 🏆`;
+    else if (st.phase === "countdown") text = `Eliminator · ${ROUNDS.length} rounds · get set…`;
+    else if (st.phase === "race") text = `Round ${st.round + 1} of ${ROUNDS.length} — last one out!`;
+    else { // pause
+      const rd = ROUNDS[st.round];
+      text = `💀 ${RUNNERS[rd.eliminated].name} eliminated — drafts #${rd.slot}`;
+    }
+    if (announcerCall.textContent !== text) announcerCall.textContent = text;
+  }
+
+  let lastElimPause = -1;
+  function handleAudioElim(raceE, st) {
+    if (raceE === null) return;
+    if (st.phase === "countdown" && raceE < 0) {
+      const n = Math.ceil(-raceE);
+      if (n !== lastCountShown && n >= 1 && n <= COUNTDOWN) { lastCountShown = n; Sound.tick(); }
+    } else if (st.phase === "race" && !kickoffPlayed) {
+      kickoffPlayed = true; Sound.whistle();
+    } else if (st.phase === "pause" && st.round !== lastElimPause) {
+      lastElimPause = st.round; Sound.airhorn();
+    }
+  }
+
   // ── Audio triggers ────────────────────────────────────────────────────────
   function handleAudio(elapsed) {
     if (elapsed === null) return;
@@ -670,7 +853,7 @@
   function loop() {
     render();
     const elapsed = currentElapsed();
-    if ((mode === "synced" || mode === "replay") && elapsed !== null && elapsed >= DURATION) {
+    if ((mode === "synced" || mode === "replay") && elapsed !== null && elapsed >= RACE_DURATION) {
       finishAnimation();
       return;
     }
@@ -679,13 +862,13 @@
 
   function startLoop() {
     if (rafId) cancelAnimationFrame(rafId);
-    kickoffPlayed = false; lastCountShown = null;
+    kickoffPlayed = false; lastCountShown = null; lastElimPause = -1;
     rafId = requestAnimationFrame(loop);
     // rAF is fully paused while the tab is hidden — setTimeout keeps running,
     // so use it as a completion safety so a backgrounded race still finishes.
     if (safetyTimer) clearTimeout(safetyTimer);
     const elapsed = currentElapsed();
-    const remainingMs = Math.max(0, (DURATION - (elapsed || 0)) * 1000) + 200;
+    const remainingMs = Math.max(0, (RACE_DURATION - (elapsed || 0)) * 1000) + 200;
     safetyTimer = setTimeout(() => {
       if (mode === "synced" || mode === "replay") finishAnimation();
     }, remainingMs);
@@ -876,6 +1059,14 @@
   function renderStats() {
     const statsEl = document.getElementById("statsPanel");
     if (!statsEl) return;
+    if (ELIM) {   // per-round series — show a simple summary instead of single-race stats
+      statsEl.innerHTML =
+        `<div class="stat-tile"><div class="stat-ico">💀</div><div class="stat-body">` +
+        `<div class="stat-lbl">Format</div><div class="stat-val">Eliminator · ${ROUNDS.length} rounds</div></div></div>` +
+        `<div class="stat-tile"><div class="stat-ico">🏆</div><div class="stat-body">` +
+        `<div class="stat-lbl">Last standing</div><div class="stat-val">${escapeHtml(WINNER.name)}</div></div></div>`;
+      return;
+    }
     const maxFt = Math.max.apply(null, RUNNERS.map(r => r.finish_time));
     const dt = 0.1;
 
@@ -1142,7 +1333,7 @@
     if (state.status === "running" && state.started_at_ms) {
       startedAt = state.started_at_ms;
       const elapsed = (serverNow() - startedAt) / 1000 - COUNTDOWN;
-      if (elapsed >= DURATION) { mode = "done"; finishAnimation(); }
+      if (elapsed >= RACE_DURATION) { mode = "done"; finishAnimation(); }
       else { mode = "synced"; statusLine.textContent = "Racing…"; if (runBtn) runBtn.disabled = true; startLoop(); }
     } else if (state.status === "finished") {
       mode = "done"; render(); showPodium();

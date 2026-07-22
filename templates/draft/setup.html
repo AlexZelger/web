@@ -68,6 +68,19 @@
   }
   #countRange { flex: 1; min-width: 180px; accent-color: var(--gold); }
 
+  .mode-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mode-row label { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.08em; }
+  .mode-toggle {
+    display: inline-flex; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px; padding: 3px;
+  }
+  .mode-opt {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; padding: 8px 16px;
+    border: none; background: transparent; color: var(--chalk); cursor: pointer; border-radius: 6px;
+  }
+  .mode-opt.active { background: var(--gold); color: var(--ink); font-weight: 600; }
+  .mode-desc { font-size: 13px; color: #4a5a50; margin-bottom: 20px; min-height: 18px; }
+
   .names-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -124,6 +137,15 @@
              min="{{ min_players }}" max="{{ max_players }}" value="8"/>
     </div>
 
+    <div class="mode-row">
+      <label>Race type</label>
+      <div class="mode-toggle" id="modeToggle">
+        <button type="button" class="mode-opt active" data-mode="standard">🏁 Standard</button>
+        <button type="button" class="mode-opt" data-mode="eliminator">💀 Eliminator</button>
+      </div>
+    </div>
+    <p class="mode-desc" id="modeDesc">One race — the finish order is your draft order.</p>
+
     <div class="names-grid" id="namesGrid"></div>
 
     <div class="actions">
@@ -142,6 +164,20 @@
   const range   = document.getElementById('countRange');
   const countEl = document.getElementById('countVal');
   const errEl   = document.getElementById('err');
+
+  // Race-mode toggle
+  let raceMode = 'standard';
+  const MODE_DESC = {
+    standard: 'One race — the finish order is your draft order.',
+    eliminator: 'A series of races: the last-place runner each round is knocked out and drafts last, filling the order bottom-up. Last one standing drafts #1.',
+  };
+  document.querySelectorAll('#modeToggle .mode-opt').forEach(btn => {
+    btn.onclick = () => {
+      raceMode = btn.dataset.mode;
+      document.querySelectorAll('#modeToggle .mode-opt').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('modeDesc').textContent = MODE_DESC[raceMode];
+    };
+  });
 
   let names = [];   // preserve typed names across count changes
 
@@ -184,7 +220,7 @@
       const res = await fetch('/draft/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ names: vals }),
+        body: JSON.stringify({ names: vals, mode: raceMode }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { errEl.textContent = data.error || 'Could not create race.'; return; }

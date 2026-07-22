@@ -89,8 +89,12 @@ def create():
     if len(names) > dm.MAX_PLAYERS:
         return jsonify({"error": f"At most {dm.MAX_PLAYERS} players."}), 400
 
+    mode = data.get("mode", "standard")
+    if mode not in ("standard", "eliminator"):
+        mode = "standard"
+
     dm.cleanup_stale_runs()
-    run_id = dm.create_run(names)
+    run_id = dm.create_run(names, mode=mode)
     _mark_owner(run_id)
     return jsonify({"run_id": run_id})
 

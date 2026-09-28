@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}The Imposter — Word Deduction — Alex Zelger{% endblock %}
+
+{% block head %}
+<style>
+  .imp-wrap {
+    --bg:     #12101c;
+    --panel:  #1c1830;
+    --panel2: #241f3d;
+    --line:   #3a3358;
+    --text:   #eae6f7;
+    --muted:  #9a92bd;
+    --amber:  #f5c451;
+    --danger: #ef5a72;
+    --accent: #7c6cf0;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 90px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+  }
+  .imp-hero { text-align: center; margin-bottom: 36px; }
+  .imp-eyebrow {
+    font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 14px;
+  }
+  .imp-hero h1 {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(40px, 8vw, 68px); line-height: 0.98;
+    letter-spacing: -0.02em; margin-bottom: 16px;
+  }
+  .imp-hero h1 .mask { color: var(--amber); }
+  .imp-hero p { color: var(--muted); font-size: 14px; line-height: 1.7; max-width: 480px; margin: 0 auto; }
+
+  .imp-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  @media (max-width: 620px) { .imp-cards { grid-template-columns: 1fr; } }
+
+  .imp-card {
+    background: linear-gradient(165deg, var(--panel), var(--panel2));
+    border: 1px solid var(--line); border-radius: 16px;
+    padding: 24px 22px; box-shadow: 0 14px 34px rgba(0,0,0,0.35);
+  }
+  .imp-card h2 {
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 9px;
+  }
+  .imp-card .hint { color: var(--muted); font-size: 12.5px; margin-bottom: 18px; line-height: 1.6; }
+
+  .imp-label { display:block; font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+  .imp-input {
+    width: 100%; background: #100e1a; border: 1px solid var(--line);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 15px;
+    padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .imp-input:focus { border-color: var(--accent); }
+  .imp-input.code { letter-spacing: 0.3em; text-transform: lowercase; text-align: center; font-size: 20px; }
+
+  .imp-btn {
+    width: 100%; border: none; cursor: pointer;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 13px 20px; border-radius: 10px; color: #17132a;
+    background: var(--amber); transition: transform 0.12s, filter 0.15s;
+  }
+  .imp-btn.alt { background: var(--accent); color: #fff; }
+  .imp-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .imp-btn:disabled { opacity: 0.55; cursor: default; transform: none; }
+
+  .imp-err { color: var(--danger); font-size: 12.5px; min-height: 18px; margin-top: 2px; }
+
+  .imp-rules {
+    margin-top: 34px; background: rgba(124,108,240,0.07);
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px;
+  }
+  .imp-rules h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; margin-bottom:12px; letter-spacing:0.03em; }
+  .imp-rules ol { margin: 0; padding-left: 20px; color: var(--muted); font-size: 13px; line-height: 1.85; }
+  .imp-rules ol b { color: var(--text); font-weight: 500; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="imp-wrap">
+  <div class="imp-hero">
+    <div class="imp-eyebrow">Social Deduction · {{ min_players }}–{{ max_players }} players</div>
+    <h1>The <span class="mask">Imposter</span></h1>
+    <p>
+      Everyone shares one secret word — everyone except the <b>imposter</b>, who's flying blind.
+      Drop one-word clues, sniff out the faker, and vote. Best played in the same room or on a call.
+    </p>
+  </div>
+
+  <div class="imp-cards">
+    <div class="imp-card">
+      <h2>🎭 Host a game</h2>
+      <p class="hint">Create a room and share the code. You control when each round starts.</p>
+      <label class="imp-label" for="host-name">Your name</label>
+      <input class="imp-input" id="host-name" maxlength="20" placeholder="e.g. Alex" autocomplete="off"/>
+      <button class="imp-btn" id="host-btn">Create room</button>
+      <div class="imp-err" id="host-err"></div>
+    </div>
+
+    <div class="imp-card">
+      <h2>🔎 Join a game</h2>
+      <p class="hint">Got a room code from a friend? Punch it in and pick a name.</p>
+      <label class="imp-label" for="join-code">Room code</label>
+      <input class="imp-input code" id="join-code" maxlength="5" placeholder="xxxxx" autocomplete="off"/>
+      <label class="imp-label" for="join-name">Your name</label>
+      <input class="imp-input" id="join-name" maxlength="20" placeholder="e.g. Sam" autocomplete="off"/>
+      <button class="imp-btn alt" id="join-btn">Join room</button>
+      <div class="imp-err" id="join-err"></div>
+    </div>
+  </div>
+
+  <div class="imp-rules">
+    <h3>How it plays</h3>
+    <ol>
+      <li>Everyone gets the same <b>secret word</b> from a shown category — except one random <b>imposter</b>, who only sees the category.</li>
+      <li>Going around in order, each player gives <b>one word</b> hinting at the secret. The imposter has to bluff something that fits.</li>
+      <li>Everyone <b>votes</b> on who the imposter is.</li>
+      <li>Caught? The imposter gets one shot to <b>guess the word</b> and steal the win. Slip away uncaught and they win outright.</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  async function postJSON(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+    return data;
+  }
+
+  const hostBtn = $("host-btn"), joinBtn = $("join-btn");
+
+  async function host() {
+    const name = $("host-name").value.trim();
+    $("host-err").textContent = "";
+    if (!name) { $("host-err").textContent = "Enter your name first."; return; }
+    hostBtn.disabled = true;
+    try {
+      const { game_id } = await postJSON("/imposter/create", { name });
+      window.location.href = `/imposter/g/${game_id}`;
+    } catch (e) {
+      $("host-err").textContent = e.message;
+      hostBtn.disabled = false;
+    }
+  }
+
+  async function join() {
+    const code = $("join-code").value.trim().toLowerCase();
+    const name = $("join-name").value.trim();
+    $("join-err").textContent = "";
+    if (!code) { $("join-err").textContent = "Enter the room code."; return; }
+    if (!name) { $("join-err").textContent = "Enter your name."; return; }
+    joinBtn.disabled = true;
+    try {
+      await postJSON(`/imposter/g/${code}/join`, { name });
+      window.location.href = `/imposter/g/${code}`;
+    } catch (e) {
+      $("join-err").textContent = e.message;
+      joinBtn.disabled = false;
+    }
+  }
+
+  hostBtn.addEventListener("click", host);
+  joinBtn.addEventListener("click", join);
+  $("host-name").addEventListener("keydown", (e) => { if (e.key === "Enter") host(); });
+  $("join-name").addEventListener("keydown", (e) => { if (e.key === "Enter") join(); });
+</script>
+{% endblock %}

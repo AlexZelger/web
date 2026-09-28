@@ -5,14 +5,24 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{% block title %}Alex Zelger{% endblock %}</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      --bg:      #111111;
+      --bg-raised: #191919;
+      --fg:      #f2ece1;
+      --muted:   #8a8681;
+      --border:  #3a3835;
+      --border-strong: #f2ece1;
+      --brand:   #ff5a36;
+      --accent-2: #d9c46a;
+
+      /* Legacy tokens kept for the light-themed game sub-pages
+         (wolves, draft, game, nfl, imposter) that still reference them. */
       --ink:    #0e0e0e;
       --paper:  #f4f1eb;
-      --muted:  #8a8680;
       --rule:   #d8d4cc;
       --accent: #1a3a2a;
       --gold:   #c9933a;
@@ -22,9 +32,9 @@
     html { scroll-behavior: smooth; }
 
     body {
-      background: var(--paper);
-      color: var(--ink);
-      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -32,61 +42,54 @@
 
     main { flex: 1; }
 
+    a { color: inherit; }
+
     /* ── Masthead ─────────────────────────────────────────────────────── */
     .masthead {
-      border-bottom: 2px solid var(--ink);
+      border-bottom: 1px solid var(--border);
       padding: 0 40px;
       position: sticky;
       top: 0;
-      background: var(--paper);
+      background: var(--bg);
       z-index: 100;
     }
 
     .masthead-inner {
-      max-width: 1200px;
+      max-width: 960px;
       margin: 0 auto;
       display: flex;
-      align-items: stretch;
+      align-items: center;
       justify-content: space-between;
+      padding: 22px 0;
     }
 
     .masthead-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: clamp(22px, 3vw, 32px);
-      letter-spacing: -0.02em;
-      color: var(--ink);
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.01em;
+      color: var(--fg);
       text-decoration: none;
-      padding: 20px 40px 20px 0;
-      border-right: 1px solid var(--rule);
-      display: flex;
-      align-items: center;
-      transition: color 0.2s;
+      border-bottom: 2px solid var(--brand);
+      padding-bottom: 2px;
     }
-    .masthead-name:hover { color: var(--accent); }
 
     .masthead-nav {
       display: flex;
-      align-items: stretch;
-      padding-left: 0;
+      align-items: center;
+      gap: 28px;
     }
 
     .masthead-nav a {
-      font-size: 11px;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
+      font-size: 13px;
+      letter-spacing: 0.02em;
       color: var(--muted);
       text-decoration: none;
-      padding: 0 24px;
-      display: flex;
-      align-items: center;
-      border-right: 1px solid var(--rule);
-      transition: color 0.2s, background 0.2s;
-      white-space: nowrap;
+      padding-bottom: 3px;
+      border-bottom: 1px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
     }
-    .masthead-nav a:first-child { border-left: 1px solid var(--rule); margin-left: 40px; }
-    .masthead-nav a:hover { color: var(--ink); background: rgba(0,0,0,0.02); }
-    .masthead-nav a.active { color: var(--ink); font-weight: 500; }
+    .masthead-nav a:hover { color: var(--fg); }
+    .masthead-nav a.active { color: var(--fg); border-color: var(--fg); }
 
     /* Mobile nav toggle */
     .nav-toggle {
@@ -94,7 +97,7 @@
       background: none;
       border: none;
       cursor: pointer;
-      padding: 20px 0 20px 20px;
+      padding: 4px;
       flex-direction: column;
       gap: 5px;
       align-items: flex-end;
@@ -102,43 +105,39 @@
     .nav-toggle span {
       display: block;
       height: 2px;
-      background: var(--ink);
-      border-radius: 2px;
+      background: var(--fg);
       transition: width 0.2s;
     }
-    .nav-toggle span:nth-child(1) { width: 24px; }
-    .nav-toggle span:nth-child(2) { width: 16px; }
-    .nav-toggle span:nth-child(3) { width: 20px; }
+    .nav-toggle span:nth-child(1) { width: 22px; }
+    .nav-toggle span:nth-child(2) { width: 15px; }
+    .nav-toggle span:nth-child(3) { width: 19px; }
 
     .mobile-nav {
       display: none;
       flex-direction: column;
-      border-top: 1px solid var(--rule);
-      padding: 8px 0;
+      border-top: 1px solid var(--border);
+      padding: 6px 0 14px;
     }
     .mobile-nav.open { display: flex; }
     .mobile-nav a {
-      font-size: 12px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      font-size: 13px;
       color: var(--muted);
       text-decoration: none;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--rule);
-      transition: color 0.2s;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
     }
     .mobile-nav a:last-child { border-bottom: none; }
-    .mobile-nav a:hover, .mobile-nav a.active { color: var(--ink); }
+    .mobile-nav a:hover, .mobile-nav a.active { color: var(--fg); }
 
     /* ── Footer ──────────────────────────────────────────────────────── */
     footer {
-      border-top: 2px solid var(--ink);
-      padding: 24px 40px;
+      border-top: 1px solid var(--border);
+      padding: 28px 40px;
       margin-top: auto;
     }
 
     .footer-inner {
-      max-width: 1200px;
+      max-width: 960px;
       margin: 0 auto;
       display: flex;
       justify-content: space-between;
@@ -148,50 +147,42 @@
     }
 
     .footer-name {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 15px;
-      color: var(--ink);
+      font-size: 13px;
+      color: var(--muted);
     }
 
     .footer-links {
       display: flex;
-      gap: 24px;
+      gap: 22px;
       flex-wrap: wrap;
     }
 
     .footer-links a {
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
+      font-size: 13px;
       color: var(--muted);
       text-decoration: none;
-      transition: color 0.2s;
+      transition: color 0.15s;
     }
-    .footer-links a:hover { color: var(--ink); }
+    .footer-links a:hover { color: var(--fg); }
 
     /* ── Shared utility classes ──────────────────────────────────────── */
     .tag {
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      padding: 4px 10px;
-      border-radius: 999px;
-      border: 1px solid var(--rule);
+      font-size: 11px;
+      padding: 3px 9px;
+      border: 1px solid var(--border);
       color: var(--muted);
     }
     .tag.highlight {
-      background: var(--accent);
-      color: rgba(245,236,215,0.9);
-      border-color: var(--accent);
+      border-color: var(--accent-2);
+      color: var(--accent-2);
     }
 
     /* ── Responsive ──────────────────────────────────────────────────── */
-    @media (max-width: 768px) {
+    @media (max-width: 720px) {
       .masthead { padding: 0 20px; }
       .masthead-nav { display: none; }
       .nav-toggle { display: flex; }
-      footer { padding: 20px; }
+      footer { padding: 22px 20px; }
     }
   </style>
 
@@ -202,22 +193,22 @@
   <!-- ── Masthead ── -->
   <header class="masthead">
     <div class="masthead-inner">
-      <a href="/" class="masthead-name">Alex Zelger</a>
+      <a href="/" class="masthead-name">alexzelger.com</a>
       <nav class="masthead-nav">
-        <a href="/"          class="{{ 'active' if request.path == '/' }}">Home</a>
-        <a href="/portfolio" class="{{ 'active' if request.path == '/portfolio' }}">Projects</a>
-        <a href="/about"     class="{{ 'active' if request.path == '/about' }}">About</a>
-        <a href="mailto:AlexTZelger@gmail.com">Contact</a>
+        <a href="/"          class="{{ 'active' if request.path == '/' }}">blog</a>
+        <a href="/portfolio" class="{{ 'active' if request.path == '/portfolio' }}">projects</a>
+        <a href="/about"     class="{{ 'active' if request.path == '/about' }}">about</a>
+        <a href="mailto:AlexTZelger@gmail.com">contact</a>
       </nav>
       <button class="nav-toggle" onclick="toggleNav()" aria-label="Toggle navigation">
         <span></span><span></span><span></span>
       </button>
     </div>
     <div class="mobile-nav" id="mobile-nav">
-      <a href="/"          class="{{ 'active' if request.path == '/' }}">Home</a>
-      <a href="/portfolio" class="{{ 'active' if request.path == '/portfolio' }}">Projects</a>
-      <a href="/about"     class="{{ 'active' if request.path == '/about' }}">About</a>
-      <a href="mailto:AlexTZelger@gmail.com">Contact</a>
+      <a href="/"          class="{{ 'active' if request.path == '/' }}">blog</a>
+      <a href="/portfolio" class="{{ 'active' if request.path == '/portfolio' }}">projects</a>
+      <a href="/about"     class="{{ 'active' if request.path == '/about' }}">about</a>
+      <a href="mailto:AlexTZelger@gmail.com">contact</a>
     </div>
   </header>
 
@@ -229,7 +220,7 @@
   <!-- ── Footer ── -->
   <footer>
     <div class="footer-inner">
-      <span class="footer-name">Alex Zelger</span>
+      <span class="footer-name">© Alex Zelger</span>
       <div class="footer-links">
         <a href="https://github.com/AlexZelger"    target="_blank" rel="noopener">GitHub</a>
         <a href="https://linkedin.com/in/Alex-Zelger" target="_blank" rel="noopener">LinkedIn</a>

@@ -17,6 +17,7 @@ import os
 
 
 import tips
+from projects_data import PROJECTS
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-fallback")
@@ -52,6 +53,14 @@ register_nfl_socketio_events(socketio)
 from draft_routes import draft_bp, register_draft_socketio_events
 app.register_blueprint(draft_bp)
 register_draft_socketio_events(socketio)
+
+# The Imposter — a word social-deduction game. Everyone shares a secret word
+# except one randomly chosen imposter; players give one-word clues and vote on
+# the faker. Its own im_*-prefixed SocketIO events keep it isolated from the
+# other multiplayer lobbies on this server.
+from imposter_routes import imposter_bp, register_imposter_socketio_events
+app.register_blueprint(imposter_bp)
+register_imposter_socketio_events(socketio)
 
 # Generate 1 randomized run for 6-12 players
 def generate_run(num_players: int = 8, names=None):
@@ -93,11 +102,11 @@ def generate_run(num_players: int = 8, names=None):
 
 @app.get("/")
 def home():
-    return render_template("home.html")
+    return render_template("home.html", projects=PROJECTS)
 
 @app.route("/portfolio")
 def portfolio():
-    return render_template("portfolio.html")
+    return render_template("portfolio.html", projects=PROJECTS)
 
 @app.route("/draftorder")
 def draftorder():

@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Room {{ game_id }} — The Imposter{% endblock %}
+
+{% block head %}
+<style>
+  .imp {
+    --bg:     #12101c;
+    --panel:  #1c1830;
+    --panel2: #241f3d;
+    --line:   #3a3358;
+    --text:   #eae6f7;
+    --muted:  #9a92bd;
+    --amber:  #f5c451;
+    --danger: #ef5a72;
+    --accent: #7c6cf0;
+    --good:   #4cd4a0;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 30px 18px 90px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+  }
+  .imp h1, .imp h2, .imp h3 { font-family: 'Syne', sans-serif; }
+
+  /* Top bar */
+  .imp-top { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-bottom:20px; }
+  .imp-code-box { display:flex; align-items:center; gap:12px; }
+  .imp-code-label { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); }
+  .imp-code {
+    font-family:'Syne',sans-serif; font-weight:800; font-size:26px; letter-spacing:0.14em;
+    color:var(--amber); background:#100e1a; border:1px solid var(--line);
+    padding:4px 16px; border-radius:10px;
+  }
+  .imp-copy {
+    background:var(--accent); color:#fff; border:none; cursor:pointer;
+    font-family:'DM Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    padding:8px 14px; border-radius:8px; transition:filter 0.15s;
+  }
+  .imp-copy:hover { filter:brightness(1.1); }
+  .imp-round { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.14em; }
+
+  /* Panels */
+  .card {
+    background: linear-gradient(165deg, var(--panel), var(--panel2));
+    border:1px solid var(--line); border-radius:16px;
+    padding:22px 22px; box-shadow:0 14px 34px rgba(0,0,0,0.32);
+    margin-bottom:18px;
+  }
+  .card h2 { font-size:19px; font-weight:700; margin-bottom:4px; }
+  .card .sub { color:var(--muted); font-size:12.5px; line-height:1.6; margin-bottom:16px; }
+  .hidden { display:none !important; }
+
+  /* Role banner */
+  .role {
+    border-radius:16px; padding:20px 22px; margin-bottom:18px; text-align:center;
+    border:1px solid var(--line);
+  }
+  .role.crew { background:linear-gradient(165deg,#173a30,#12302a); border-color:#2c6b57; }
+  .role.imposter { background:linear-gradient(165deg,#3a1522,#301220); border-color:#8a2f45; }
+  .role .role-tag { font-size:11px; letter-spacing:0.24em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .role .role-word { font-family:'Syne',sans-serif; font-weight:800; font-size:34px; letter-spacing:-0.01em; }
+  .role.crew .role-word { color:var(--good); }
+  .role.imposter .role-word { color:var(--danger); }
+  .role .role-cat { font-size:13px; color:var(--muted); margin-top:6px; }
+  .role .role-cat b { color:var(--text); }
+
+  /* Players / scoreboard */
+  .plist { display:flex; flex-direction:column; gap:8px; }
+  .prow {
+    display:flex; align-items:center; gap:12px;
+    background:#100e1a; border:1px solid var(--line); border-radius:10px; padding:10px 14px;
+  }
+  .prow .dot { width:9px; height:9px; border-radius:50%; background:var(--good); flex-shrink:0; }
+  .prow .dot.off { background:#5a5470; }
+  .prow .pname { flex:1; font-size:14px; }
+  .prow .ptag { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--amber); }
+  .prow .pscore { font-family:'Syne',sans-serif; font-weight:700; font-size:16px; color:var(--text); }
+  .prow.turn { border-color:var(--amber); box-shadow:0 0 0 1px var(--amber); }
+  .prow.me .pname::after { content:' (you)'; color:var(--muted); font-size:11px; }
+
+  /* Buttons */
+  .btn {
+    border:none; cursor:pointer; font-family:'Syne',sans-serif; font-weight:700; font-size:14px;
+    letter-spacing:0.04em; text-transform:uppercase; padding:13px 20px; border-radius:10px;
+    color:#17132a; background:var(--amber); transition:transform 0.12s, filter 0.15s;
+  }
+  .btn.alt { background:var(--accent); color:#fff; }
+  .btn.ghost { background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .btn:hover:not(:disabled) { filter:brightness(1.07); transform:translateY(-1px); }
+  .btn:disabled { opacity:0.5; cursor:default; transform:none; }
+  .btn.full { width:100%; }
+
+  /* Clue input */
+  .clue-row { display:flex; gap:10px; margin-top:14px; }
+  .clue-input {
+    flex:1; background:#100e1a; border:1px solid var(--line); color:var(--text);
+    font-family:'DM Mono',monospace; font-size:16px; padding:12px 14px; border-radius:10px; outline:none;
+  }
+  .clue-input:focus { border-color:var(--accent); }
+
+  .clue-list { display:flex; flex-direction:column; gap:8px; }
+  .clue-item {
+    display:flex; align-items:baseline; gap:10px;
+    background:#100e1a; border:1px solid var(--line); border-radius:10px; padding:10px 14px;
+  }
+  .clue-item .cname { color:var(--muted); font-size:12px; min-width:90px; }
+  .clue-item .cword { font-family:'Syne',sans-serif; font-weight:700; font-size:16px; }
+  .clue-item.pending .cword { color:var(--muted); font-weight:400; font-style:italic; }
+
+  .hint-note {
+    background:rgba(245,196,81,0.12); border:1px solid var(--amber);
+    color:var(--amber); border-radius:10px; padding:10px 14px; margin-bottom:12px;
+    font-size:13px; line-height:1.5;
+  }
+  .btn.ghost.picked { border-color:var(--amber); color:var(--amber); background:rgba(245,196,81,0.10); }
+  .locked-note { color:var(--good); font-size:13px; margin-top:12px; text-align:center; }
+  .submit-track { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+  .track-row {
+    display:flex; align-items:center; gap:10px;
+    background:#100e1a; border:1px solid var(--line); border-radius:10px; padding:9px 14px;
+  }
+  .track-row .tname { flex:1; font-size:13px; }
+  .track-row .tmark { font-size:12px; color:var(--muted); }
+  .track-row.done { border-color:#2c6b57; }
+  .track-row.done .tmark { color:var(--good); }
+
+  /* Vote grid */
+  .vote-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px; }
+  @media (max-width:520px){ .vote-grid{ grid-template-columns:1fr; } }
+  .vote-btn {
+    background:#100e1a; border:1px solid var(--line); color:var(--text); cursor:pointer;
+    font-family:'DM Mono',monospace; font-size:14px; padding:14px; border-radius:10px;
+    display:flex; align-items:center; justify-content:space-between; transition:border-color 0.15s, background 0.15s;
+  }
+  .vote-btn:hover:not(:disabled) { border-color:var(--accent); }
+  .vote-btn:disabled { opacity:0.5; cursor:default; }
+  .vote-btn.picked { border-color:var(--amber); background:rgba(245,196,81,0.12); }
+  .vote-check { color:var(--good); font-size:12px; }
+
+  /* Reveal */
+  .banner { text-align:center; border-radius:14px; padding:18px; margin-bottom:16px; font-family:'Syne',sans-serif; }
+  .banner.crew { background:rgba(76,212,160,0.14); border:1px solid var(--good); color:var(--good); }
+  .banner.imp  { background:rgba(239,90,114,0.14); border:1px solid var(--danger); color:var(--danger); }
+  .banner .big { font-weight:800; font-size:24px; }
+  .banner .small { font-size:13px; color:var(--muted); margin-top:6px; font-family:'DM Mono',monospace; }
+  .reveal-word { text-align:center; margin:6px 0 18px; }
+  .reveal-word .lab { font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--muted); }
+  .reveal-word .w { font-family:'Syne',sans-serif; font-weight:800; font-size:30px; color:var(--amber); }
+  .rrow { display:flex; align-items:center; gap:10px; background:#100e1a; border:1px solid var(--line); border-radius:10px; padding:10px 14px; margin-bottom:8px; }
+  .rrow .rname { flex:1; font-size:14px; }
+  .rrow .rvotes { font-size:12px; color:var(--muted); }
+  .rrow .rdelta { font-family:'Syne',sans-serif; font-weight:700; font-size:14px; }
+  .rrow .rdelta.pos { color:var(--good); }
+  .rrow.imp-badge { border-color:var(--danger); }
+  .rrow .impmark { font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--danger); }
+
+  /* Guess */
+  .guess-note { color:var(--muted); font-size:12.5px; line-height:1.6; margin-bottom:14px; }
+
+  /* Toast */
+  .toast {
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+    background:var(--danger); color:#fff; padding:12px 20px; border-radius:10px;
+    font-size:13px; opacity:0; pointer-events:none; transition:opacity 0.2s, transform 0.2s; z-index:200;
+    max-width:90vw; text-align:center;
+  }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* Join overlay */
+  .overlay {
+    position:fixed; inset:0; background:rgba(10,8,18,0.92); z-index:150;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .overlay-card {
+    background:linear-gradient(165deg,var(--panel),var(--panel2));
+    border:1px solid var(--line); border-radius:16px; padding:28px 26px;
+    width:100%; max-width:380px; text-align:center;
+  }
+  .overlay-card h2 { font-size:22px; font-weight:800; margin-bottom:6px; }
+  .overlay-card p { color:var(--muted); font-size:13px; margin-bottom:18px; }
+  .imp-err { color:var(--danger); font-size:12.5px; min-height:18px; margin-top:8px; }
+  .waiting-note { color:var(--muted); font-size:13px; text-align:center; padding:6px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="imp">
+
+  <!-- Top bar -->
+  <div class="imp-top">
+    <div class="imp-code-box">
+      <div>
+        <div class="imp-code-label">Room code</div>
+        <div class="imp-code" id="room-code">{{ game_id }}</div>
+      </div>
+      <button class="imp-copy" id="copy-btn">Copy link</button>
+    </div>
+    <div class="imp-round" id="round-label"></div>
+  </div>
+
+  <!-- Private role banner -->
+  <div class="role hidden" id="role-banner">
+    <div class="role-tag" id="role-tag"></div>
+    <div class="role-word" id="role-word"></div>
+    <div class="role-cat hidden" id="role-cat"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div class="card hidden" id="panel-lobby">
+    <h2>Waiting room</h2>
+    <p class="sub" id="lobby-sub"></p>
+    <div class="plist" id="lobby-players"></div>
+    <div style="margin-top:18px;">
+      <button class="btn full" id="start-btn">Start round</button>
+      <div class="waiting-note hidden" id="lobby-wait">Waiting for the host to start the round…</div>
+    </div>
+  </div>
+
+  <!-- CLUES (simultaneous — everyone submits privately, all revealed at once) -->
+  <div class="card hidden" id="panel-clues">
+    <h2 id="clues-title">Clue round</h2>
+    <div class="hint-note hidden" id="hint-note"></div>
+    <p class="sub" id="clues-sub">Think of one word that hints at the secret. Everyone's clues are hidden until all are in.</p>
+
+    <div class="hidden" id="my-clue">
+      <div class="clue-row">
+        <input class="clue-input" id="clue-input" maxlength="20" placeholder="your one-word clue" autocomplete="off"/>
+        <button class="btn" id="clue-btn">Lock in</button>
+      </div>
+    </div>
+    <div class="locked-note hidden" id="clue-locked">✔ Your clue is locked in.</div>
+
+    <div class="submit-track" id="submit-track"></div>
+    <div class="waiting-note" id="clue-wait" style="margin-top:12px;"></div>
+    <button class="btn ghost full hidden" id="reveal-btn" style="margin-top:12px;">Reveal clues &amp; vote now</button>
+  </div>
+
+  <!-- VOTING -->
+  <div class="card hidden" id="panel-voting">
+    <h2>Who's the imposter?</h2>
+    <p class="sub">Here's what everyone said. It takes a <b>majority</b> to convict — if nobody gets there, you'll give another round of hints. Not sure? Abstain.</p>
+    <div class="clue-list" id="vote-clue-list" style="margin-bottom:18px;"></div>
+    <div class="vote-grid" id="vote-grid"></div>
+    <button class="btn ghost full" id="abstain-btn" style="margin-top:12px;">Abstain</button>
+    <div class="waiting-note" id="vote-status" style="margin-top:14px;"></div>
+  </div>
+
+  <!-- GUESSING (imposter only sees the input) -->
+  <div class="card hidden" id="panel-guessing">
+    <h2>Caught!</h2>
+    <div id="guess-mine" class="hidden">
+      <p class="guess-note">You were voted out. Name the secret word now to steal the win — one shot.</p>
+      <div class="clue-row">
+        <input class="clue-input" id="guess-input" maxlength="20" placeholder="the secret word…" autocomplete="off"/>
+        <button class="btn" id="guess-btn">Guess</button>
+      </div>
+    </div>
+    <div id="guess-wait" class="waiting-note hidden">The imposter is taking their guess at the word…</div>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="card hidden" id="panel-reveal">
+    <div class="banner" id="reveal-banner">
+      <div class="big" id="reveal-headline"></div>
+      <div class="small" id="reveal-detail"></div>
+    </div>
+    <div class="reveal-word">
+      <div class="lab">The word was</div>
+      <div class="w" id="reveal-word"></div>
+    </div>
+    <div id="reveal-rows"></div>
+    <div style="margin-top:16px;">
+      <button class="btn full" id="next-btn">Next round</button>
+      <div class="waiting-note hidden" id="reveal-wait">Waiting for the host to start the next round…</div>
+    </div>
+  </div>
+
+  <!-- Scoreboard -->
+  <div class="card" id="panel-scores">
+    <h2>Scoreboard</h2>
+    <div class="plist" id="score-list" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- Toast + join overlay live INSIDE .imp so they inherit its theme CSS
+       variables (--text, --danger, …); position:fixed keeps them out of flow. -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Join overlay (shown when this browser has no seat yet) -->
+  <div class="overlay hidden" id="join-overlay">
+    <div class="overlay-card">
+      <h2>Join the game</h2>
+      <p>Pick a name to take a seat in room <b>{{ game_id }}</b>.</p>
+      <input class="clue-input" id="ov-name" maxlength="20" placeholder="your name" autocomplete="off" style="width:100%;"/>
+      <button class="btn full alt" id="ov-btn" style="margin-top:12px;">Take a seat</button>
+      <div class="imp-err" id="ov-err"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  window.IMP = {
+    gameId: "{{ game_id }}",
+    playerId: "{{ player_id }}",
+    minPlayers: {{ min_players }},
+    maxPlayers: {{ max_players }},
+  };
+</script>
+<script src="{{ url_for('static', filename='imposter/game.js') }}"></script>
+{% endblock %}

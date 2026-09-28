@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Game not found — The Imposter{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;margin:0 auto;padding:64px 20px;text-align:center;font-family:'DM Mono',monospace;color:#eae6f7;">
+  <div style="font-size:56px;margin-bottom:14px;">🕵️</div>
+  <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:40px;letter-spacing:-0.01em;margin-bottom:10px;color:#0e0e0e;">
+    Game Not Found
+  </h1>
+  <p style="color:var(--muted);margin-bottom:26px;line-height:1.7;">
+    This room code doesn't exist or has expired (games are kept for a few hours).
+    Start a fresh one below.
+  </p>
+  <a href="/imposter/" style="display:inline-block;background:#f5c451;color:#17132a;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;letter-spacing:0.05em;text-transform:uppercase;padding:13px 34px;border-radius:10px;text-decoration:none;">
+    New Game →
+  </a>
+</div>
+{% endblock %}
